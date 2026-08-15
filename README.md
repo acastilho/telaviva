@@ -69,6 +69,17 @@ Datas da API usam ISO 8601 com fuso horário. Níveis aceitos são `BEGINNER`, `
 gratuito nesta fase. Lembretes são persistentes e materializados uma única vez na caixa in-app;
 o modelo mantém o agendamento separado da entrega para receber adaptadores de e-mail e push.
 
+Cada transmissão possui configuração pública em `GET /streams/{id}/interaction-settings`; o
+criador ou um administrador altera chat, perguntas e reações com `PUT` no mesmo caminho. O canal
+`WS /streams/{id}/live` exige como primeira mensagem
+`{"type":"authenticate","token":"<access token>"}`. Depois de `ready`, clientes enviam
+`message`, `question` ou `reaction` e recebem eventos, configuração e `viewer_count`. O histórico
+autenticado está em `GET /streams/{id}/events`.
+
+Criador e administradores aplicam `mute` ou `ban` em `POST /streams/{id}/moderation`; espectadores
+denunciam eventos em `POST /streams/{id}/reports`. O servidor limita cada usuário a oito
+interações por janela de dez segundos. Ban encerra conexões ativas e mute impede novas interações.
+
 O envio do link de recuperação é um adaptador deliberadamente vazio nesta fase. Para produção,
 substitua `get_recovery_notifier` por uma integração de e-mail; tokens nunca são persistidos em claro.
 
@@ -90,6 +101,7 @@ seletor nativo do navegador (`getDisplayMedia`), sempre mediante autorização e
 e microfone usam `getUserMedia`. O estúdio oferece preview, layouts, pausa, troca de fonte,
 silenciamento e encerramento local. A distribuição para espectadores depende do provedor de
 vídeo ainda previsto no roadmap e não é simulada pelo frontend.
+O estúdio permite habilitar ou desabilitar chat, perguntas e reações antes da transmissão.
 
 ## Qualidade
 

@@ -43,6 +43,14 @@ Esse primeiro consumidor é in-app; e-mail e push devem ser consumidores assínc
 mesma intenção persistida. Quando esses canais forem habilitados, um worker com retentativas e
 dead-letter queue substituirá a materialização sob demanda, sem alterar os endpoints de domínio.
 
+## Interação ao vivo
+
+O módulo `interaction` autentica o primeiro frame do WebSocket com o access token e revalida o
+papel atual no banco. Configuração, mensagens, perguntas, reações, moderação e denúncias ficam no
+PostgreSQL para histórico e auditoria. Presença, fan-out e rate limit são efêmeros. O hub atual
+atende uma única instância; ao escalar horizontalmente, sua interface deve receber um adaptador
+Redis Pub/Sub e contadores com expiração. A mídia continua fora desse canal.
+
 ## Configuração
 
 Configuração segue variáveis de ambiente e princípios 12-factor. `.env.example` documenta nomes e valores locais não sensíveis; `.env` é ignorado. Produção deve injetar segredos pelo ambiente da plataforma. O backend valida a configuração com Pydantic Settings, enquanto valores `VITE_*` são incorporados no build do frontend.

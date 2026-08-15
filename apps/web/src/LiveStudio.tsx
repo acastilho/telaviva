@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 
 type Layout = 'screen' | 'screen-camera' | 'camera'
 type LiveState = 'preparing' | 'preview' | 'live' | 'paused' | 'ended'
+type InteractionChannel = 'chat' | 'questions' | 'reactions'
 
 const stopStream = (stream: MediaStream | null) => stream?.getTracks().forEach((track) => track.stop())
 
@@ -22,6 +23,11 @@ export function LiveStudio({ onClose }: { onClose: () => void }) {
   const [cameraEnabled, setCameraEnabled] = useState(false)
   const [micEnabled, setMicEnabled] = useState(true)
   const [error, setError] = useState('')
+  const [interactions, setInteractions] = useState<Record<InteractionChannel, boolean>>({
+    chat: true,
+    questions: true,
+    reactions: true,
+  })
   const screenRef = useRef<MediaStream | null>(null)
   const cameraRef = useRef<MediaStream | null>(null)
   const microphoneRef = useRef<MediaStream | null>(null)
@@ -136,6 +142,9 @@ export function LiveStudio({ onClose }: { onClose: () => void }) {
 
   const needsScreen = layout !== 'camera'
   const ready = (needsScreen ? !!screen : !!camera) && state !== 'ended'
+  const toggleInteraction = (channel: InteractionChannel) => {
+    setInteractions((current) => ({ ...current, [channel]: !current[channel] }))
+  }
 
   return <div className="studio-shell" role="dialog" aria-modal="true" aria-labelledby="studio-title">
     <header className="studio-header">
@@ -170,6 +179,14 @@ export function LiveStudio({ onClose }: { onClose: () => void }) {
           <label><input type="radio" name="layout" checked={layout === 'screen-camera'} onChange={() => setLayout('screen-camera')} /><span>▰</span><b>Tela + câmera</b></label>
           <label><input type="radio" name="layout" checked={layout === 'camera'} onChange={() => setLayout('camera')} /><span>▣</span><b>Somente câmera</b></label>
         </fieldset>
+        <fieldset className="interaction-settings"><legend>Interação ao vivo</legend>
+          <label><input type="checkbox" checked={interactions.chat} onChange={() => toggleInteraction('chat')} /><span aria-hidden="true">☵</span><b>Chat</b></label>
+          <label><input type="checkbox" checked={interactions.questions} onChange={() => toggleInteraction('questions')} /><span aria-hidden="true">?</span><b>Perguntas</b></label>
+          <label><input type="checkbox" checked={interactions.reactions} onChange={() => toggleInteraction('reactions')} /><span aria-hidden="true">♡</span><b>Reações</b></label>
+        </fieldset>
+        <p className="interaction-note" role="status">
+          {Object.values(interactions).filter(Boolean).length} de 3 canais habilitados. Você pode alterá-los durante a live.
+        </p>
         {needsScreen && <div className="source-card"><div><strong>Monitor, janela ou aba</strong><p>O navegador abrirá um seletor seguro para você escolher exatamente o que compartilhar.</p></div><button className="secondary" onClick={requestScreen}>{screen ? 'Trocar fonte' : 'Escolher fonte'}</button></div>}
         <div className="permission-note"><strong>Você está no controle</strong><p>A TelaViva não acessa nem controla seu computador. O compartilhamento só começa após sua autorização explícita e pode ser interrompido a qualquer momento.</p></div>
         {error && <p className="studio-error" role="alert">{error}</p>}

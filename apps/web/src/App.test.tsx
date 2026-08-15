@@ -112,4 +112,15 @@ describe('Estúdio de transmissão', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/não autorizado/i)
   })
+
+  it('permite ao criador habilitar e desabilitar canais de interação', () => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'Criar live' }))
+
+    const chat = screen.getByRole('checkbox', { name: 'Chat' })
+    expect(chat).toBeChecked()
+    fireEvent.click(chat)
+    expect(chat).not.toBeChecked()
+    expect(screen.getByRole('status')).toHaveTextContent('2 de 3 canais habilitados')
+  })
 })
