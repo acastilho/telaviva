@@ -13,6 +13,10 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+asyncpg://telaviva:telaviva_local@localhost:5432/telaviva"
     redis_url: str = "redis://localhost:6379/0"
     api_cors_origins: list[str] = Field(default=["http://localhost:5173"])
+    rate_limit_requests: int = Field(default=120, ge=1, le=10000)
+    rate_limit_window_seconds: int = Field(default=60, ge=1, le=3600)
+    auth_rate_limit_requests: int = Field(default=20, ge=1, le=1000)
+    max_request_body_bytes: int = Field(default=1_048_576, ge=1024, le=10_485_760)
     jwt_secret: str = "development-only-change-me-at-least-32-characters"
     jwt_issuer: str = "telaviva-api"
     access_token_minutes: int = Field(default=15, ge=1)
@@ -35,6 +39,8 @@ class Settings(BaseSettings):
             raise ValueError("JWT_SECRET must be configured in production")
         if self.app_env.lower() in {"production", "prod"} and self.payment_provider == "fake":
             raise ValueError("PAYMENT_PROVIDER must be configured in production")
+        if any(origin == "*" for origin in self.api_cors_origins):
+            raise ValueError("API_CORS_ORIGINS cannot contain a wildcard when credentials are enabled")
         return self
 
 

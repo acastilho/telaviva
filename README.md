@@ -50,6 +50,12 @@ done
 No ambiente Docker Compose essa migração é aplicada automaticamente pelo serviço `migrate`.
 
 Configure `JWT_SECRET` com pelo menos 32 caracteres (obrigatório e sem valor padrão em produção).
+Configure uma lista explícita em `API_CORS_ORIGINS`; curingas são recusados porque a API aceita
+credenciais. A API aplica headers defensivos, limite de corpo (1 MiB), rate limiting por cliente
+(120 requisições/minuto e 20/minuto nos fluxos sensíveis de autenticação) e logs JSON sem corpo,
+query string, cookies ou tokens. Em múltiplas réplicas, replique esses limites no proxy/edge para
+uma janela compartilhada. `X-Request-ID` pode ser enviado com até 64 caracteres alfanuméricos e é
+sempre devolvido para correlação; respostas não devem ser armazenadas em cache.
 Os endpoints de autenticação estão sob `/auth`: cadastro, login, refresh, logout,
 recuperação/reset de senha e consulta do usuário atual. O cadastro público sempre cria `VIEWER`;
 promoções para `CREATOR` ou `ADMIN` devem ocorrer por um fluxo administrativo confiável.
@@ -150,6 +156,9 @@ seletor nativo do navegador (`getDisplayMedia`), sempre mediante autorização e
 e microfone usam `getUserMedia`. O estúdio oferece preview, layouts, pausa, troca de fonte,
 silenciamento e encerramento local. A distribuição para espectadores depende do provedor de
 vídeo ainda previsto no roadmap e não é simulada pelo frontend.
+Quando suportado pelo navegador, o seletor prefere uma aba, exclui a própria aba do TelaViva e
+permite trocar a fonte sem conceder acesso permanente. Áudio da tela não é capturado. Encerrar,
+fechar o estúdio ou desmontar a tela interrompe todas as trilhas de mídia.
 O estúdio permite habilitar ou desabilitar chat, perguntas e reações antes da transmissão.
 
 ## Qualidade

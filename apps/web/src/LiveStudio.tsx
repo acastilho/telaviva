@@ -53,7 +53,15 @@ export function LiveStudio({ onClose }: { onClose: () => void }) {
       return false
     }
     try {
-      const next = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false })
+      const privacyConstraints = {
+        video: true,
+        audio: false,
+        // Prefer a tab and keep this application's own tab out of the picker where supported.
+        preferCurrentTab: true,
+        selfBrowserSurface: 'exclude',
+        surfaceSwitching: 'include',
+      } as DisplayMediaStreamOptions
+      const next = await navigator.mediaDevices.getDisplayMedia(privacyConstraints)
       const track = next.getVideoTracks()[0]
       track?.addEventListener('ended', () => {
         if (screenRef.current === next) {

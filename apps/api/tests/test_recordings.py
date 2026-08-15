@@ -177,6 +177,8 @@ def test_broadcast_automatically_starts_and_stops_recording() -> None:
     started = client.post(f"/streams/{stream_id}/broadcast/start")
     assert started.status_code == 200
     assert started.json()["status"] == "RECORDING"
+    assert started.json()["playback_url"] is None
+    assert started.json()["thumbnail_url"] is None
     assert processor.started[0][0] == UUID(started.json()["id"])
     assert "/upload/streams/" in processor.started[0][1]
     repeated = client.post(f"/streams/{stream_id}/broadcast/start")
@@ -186,6 +188,7 @@ def test_broadcast_automatically_starts_and_stops_recording() -> None:
     ended = client.post(f"/streams/{stream_id}/broadcast/end")
     assert ended.status_code == 200
     assert ended.json()["status"] == "PROCESSING"
+    assert ended.json()["playback_url"] is None
     assert ended.json()["ended_at"] is not None
     assert processor.finished == [UUID(started.json()["id"])]
     assert client.post(f"/streams/{stream_id}/broadcast/end").status_code == 409
@@ -220,8 +223,9 @@ def test_recording_reuses_stream_commercial_access_and_control_rules() -> None:
     assert client.post(f"/streams/{stream_id}/broadcast/start").status_code == 403
     current_user = creator
     client.post(f"/streams/{stream_id}/broadcast/start")
-    commerce.granted = False
     current_user = viewer
+    assert client.get(f"/streams/{stream_id}/recording").status_code == 409
+    commerce.granted = False
     assert client.get(f"/streams/{stream_id}/recording").status_code == 403
 
 

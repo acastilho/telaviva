@@ -74,7 +74,12 @@ def _response(
     ttl: int = 900,
 ) -> RecordingResponse:
     response = RecordingResponse.model_validate(recording)
-    if storage and recording.playback_key and recording.thumbnail_key:
+    if (
+        storage
+        and recording.status is RecordingStatus.READY
+        and recording.playback_key
+        and recording.thumbnail_key
+    ):
         response.playback_url = storage.download_url(recording.playback_key, ttl)
         response.thumbnail_url = storage.download_url(recording.thumbnail_key, ttl)
     return response
@@ -104,6 +109,8 @@ async def _require_recording_access(
         raise HTTPException(404, "Stream not found") from error
     if not access.granted:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Entitlement or invitation required")
+    if recording.status is not RecordingStatus.READY:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Recording is not ready for replay")
     return recording
 
 
@@ -182,6 +189,8 @@ async def get_recording(
         raise HTTPException(404, "Stream not found") from error
     if not access.granted:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Entitlement or invitation required")
+    if recording.status is not RecordingStatus.READY:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Recording is not ready for replay")
     return _response(recording, storage, settings.recording_url_ttl_seconds)
 
 
