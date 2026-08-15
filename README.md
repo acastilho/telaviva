@@ -133,6 +133,10 @@ O dashboard do espectador reúne transmissões ao vivo, aulas agendadas, categor
 criadores. A busca e os filtros de descoberta são aplicados no cliente ao catálogo atual;
 entrar em uma transmissão exige autenticação. Enquanto os endpoints de transmissões não
 forem implementados, o frontend usa dados demonstrativos tipados para essa experiência.
+A opção **Painel do criador** abre uma visão operacional responsiva com agenda, gravações,
+alunos, seguidores, receita, gorjetas, vendas, analytics, histórico financeiro e configuração
+de preços. O CTA de transmissão leva ao estúdio existente; métricas e preços permanecem
+demonstrativos no cliente até a integração do frontend autenticado com a API.
 A navegação inclui a biblioteca demonstrativa com filtros por compra/assinatura, histórico,
 retomada e página de replay; a integração HTTP substituirá os dados tipados quando o fluxo de
 autenticação do frontend estiver conectado à API.

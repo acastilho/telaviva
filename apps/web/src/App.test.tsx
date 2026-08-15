@@ -61,6 +61,39 @@ describe('Dashboard do espectador', () => {
   })
 })
 
+describe('Painel do criador', () => {
+  it('reúne operação, público, monetização e histórico do criador', () => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'Painel do criador' }))
+
+    expect(screen.getByRole('heading', { name: /olá, marina/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Iniciar transmissão' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Próximas aulas' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Gravações' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Seus alunos' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Seguidores' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Vendas' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Gorjetas' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Histórico financeiro' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Configuração de preços' })).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: /gráfico de receita/i })).toBeInTheDocument()
+  })
+
+  it('configura preços e abre o estúdio a partir do painel', () => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'Painel do criador' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Configurar preços' }))
+
+    const dialog = screen.getByRole('dialog', { name: 'Configurar preços' })
+    fireEvent.change(within(dialog).getByLabelText('Preço padrão da aula'), { target: { value: '99,00' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Salvar preços' }))
+    expect(screen.getByRole('status')).toHaveTextContent('Preços atualizados com sucesso.')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Iniciar transmissão' }))
+    expect(screen.getByRole('dialog', { name: 'Prepare sua live' })).toBeInTheDocument()
+  })
+})
+
 describe('Estúdio de transmissão', () => {
   const makeStream = (kind: 'video' | 'audio') => {
     const track = { enabled: true, stop: vi.fn(), addEventListener: vi.fn() }
