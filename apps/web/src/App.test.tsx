@@ -94,6 +94,46 @@ describe('Painel do criador', () => {
   })
 })
 
+describe('Painel administrativo', () => {
+  it('reúne todas as áreas de administração da plataforma', () => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'Administração' }))
+
+    expect(screen.getByRole('heading', { name: 'Visão geral' })).toBeInTheDocument()
+    const navigation = screen.getByRole('navigation', { name: 'Navegação administrativa' })
+    for (const area of ['Usuários', 'Criadores', 'Transmissões', 'Gravações', 'Pagamentos', 'Denúncias', 'Categorias', 'Comissões', 'Auditoria', 'Métricas', 'Bloqueios', 'Moderação']) {
+      expect(within(navigation).getByRole('button', { name: area })).toBeInTheDocument()
+    }
+    expect(screen.getByRole('heading', { name: 'Usuários recentes' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Fila de moderação' })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Métricas da plataforma' })).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Audiência das transmissões ao vivo' })).toBeInTheDocument()
+  })
+
+  it('pesquisa, filtra e resolve itens da fila de moderação', () => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'Administração' }))
+
+    fireEvent.change(screen.getByLabelText('Buscar na administração'), { target: { value: 'direitos autorais' } })
+    expect(screen.getByText('Revisão por direitos autorais')).toBeInTheDocument()
+    expect(screen.queryByText('Mensagem ofensiva no chat')).not.toBeInTheDocument()
+
+    fireEvent.change(screen.getByLabelText('Buscar na administração'), { target: { value: '' } })
+    fireEvent.change(screen.getByLabelText('Filtrar status'), { target: { value: 'Em análise' } })
+    expect(screen.getByText('Mensagem ofensiva no chat')).toBeInTheDocument()
+    expect(screen.queryByText('Validação de perfil profissional')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Revisar Mensagem ofensiva no chat' }))
+    expect(screen.queryByText('Mensagem ofensiva no chat')).not.toBeInTheDocument()
+  })
+
+  it('volta para a TelaViva pelo cabeçalho administrativo', () => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'Administração' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Voltar ao início' }))
+    expect(screen.getByRole('heading', { name: /o que você quer aprender hoje/i })).toBeInTheDocument()
+  })
+})
+
 describe('Estúdio de transmissão', () => {
   const makeStream = (kind: 'video' | 'audio') => {
     const track = { enabled: true, stop: vi.fn(), addEventListener: vi.fn() }

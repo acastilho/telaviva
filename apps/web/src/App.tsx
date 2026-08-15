@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { LiveStudio } from './LiveStudio'
 import { RecordingLibrary } from './RecordingLibrary'
 import { CreatorDashboard } from './CreatorDashboard'
+import { AdminDashboard } from './AdminDashboard'
 
 type Session = {
   id: number
@@ -100,6 +101,7 @@ export function App() {
   const [studioOpen, setStudioOpen] = useState(false)
   const [libraryOpen, setLibraryOpen] = useState(false)
   const [dashboardOpen, setDashboardOpen] = useState(false)
+  const [adminOpen, setAdminOpen] = useState(false)
 
   const filtered = useMemo(() => sessions.filter((session) => {
     const term = query.toLocaleLowerCase('pt-BR')
@@ -126,13 +128,14 @@ export function App() {
   if (studioOpen) return <LiveStudio onClose={() => setStudioOpen(false)} />
   if (libraryOpen) return <RecordingLibrary onClose={() => setLibraryOpen(false)} />
   if (dashboardOpen) return <CreatorDashboard onClose={() => setDashboardOpen(false)} onStartLive={() => { setDashboardOpen(false); setStudioOpen(true) }} />
+  if (adminOpen) return <AdminDashboard onClose={() => setAdminOpen(false)} />
 
   return (
     <div className="app-shell">
       <header>
         <a className="brand" href="#inicio" aria-label="TelaViva, início"><span className="brand-icon">▶</span>TelaViva</a>
         <nav aria-label="Navegação principal"><a className="active" href="#inicio">Descobrir</a><a href="#categorias">Categorias</a><a href="#proximas">Agenda</a><button onClick={() => setLibraryOpen(true)}>Minha biblioteca</button></nav>
-        <div className="header-actions"><button className="link-button" onClick={() => setLoginOpen(true)}>Entrar</button><button className="link-button" onClick={() => setDashboardOpen(true)}>Painel do criador</button><button className="link-button create-live" onClick={() => setStudioOpen(true)}>Criar live</button><button className="primary small" onClick={() => setLoginOpen(true)}>Criar conta</button></div>
+        <div className="header-actions"><button className="link-button" onClick={() => setLoginOpen(true)}>Entrar</button><button className="link-button" onClick={() => setDashboardOpen(true)}>Painel do criador</button><button className="link-button admin-link" onClick={() => setAdminOpen(true)}>Administração</button><button className="link-button create-live" onClick={() => setStudioOpen(true)}>Criar live</button><button className="primary small" onClick={() => setLoginOpen(true)}>Criar conta</button></div>
       </header>
 
       <main id="inicio">

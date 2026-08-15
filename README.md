@@ -137,6 +137,10 @@ A opção **Painel do criador** abre uma visão operacional responsiva com agend
 alunos, seguidores, receita, gorjetas, vendas, analytics, histórico financeiro e configuração
 de preços. O CTA de transmissão leva ao estúdio existente; métricas e preços permanecem
 demonstrativos no cliente até a integração do frontend autenticado com a API.
+A opção **Administração** abre o painel operacional responsivo com usuários, criadores,
+transmissões, gravações, pagamentos, denúncias, categorias, comissões, auditoria, métricas,
+bloqueios e fila de moderação. Os dados e as ações são demonstrativos no cliente até a
+integração do frontend com uma sessão autenticada de papel `ADMIN` e endpoints administrativos.
 A navegação inclui a biblioteca demonstrativa com filtros por compra/assinatura, histórico,
 retomada e página de replay; a integração HTTP substituirá os dados tipados quando o fluxo de
 autenticação do frontend estiver conectado à API.
