@@ -5,6 +5,7 @@ from app.config import Settings, get_settings
 from app.creators.routes import router as creators_router
 from app.health import HealthChecker, InfrastructureHealthChecker
 from app.identity.routes import router as identity_router
+from app.scheduling.routes import router as scheduling_router
 
 settings = get_settings()
 app = FastAPI(title=settings.app_name, version="0.1.0")
@@ -17,6 +18,7 @@ app.add_middleware(
 )
 app.include_router(identity_router)
 app.include_router(creators_router)
+app.include_router(scheduling_router)
 
 
 def get_health_checker(configuration: Settings = Depends(get_settings)) -> HealthChecker:

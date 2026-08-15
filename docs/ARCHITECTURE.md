@@ -23,7 +23,25 @@ Navegador <──WebSocket──> Canal de chat (fase de streaming)
 
 ## Organização
 
-`apps/api/app` começa compacto e cresce por módulos de domínio (`identity`, `creators`, `streams`, `chat`, `support`, `moderation`), cada um separando rotas, modelos, contratos e persistência. Categorias são um catálogo estável com identificadores determinísticos; perfis referenciam esse catálogo por uma relação muitos-para-muitos. `apps/web/src` deve evoluir por funcionalidades, mantendo componentes genéricos apenas quando houver reutilização real.
+`apps/api/app` começa compacto e cresce por módulos de domínio (`identity`, `creators`,
+`scheduling`, `chat`, `support`, `moderation`), cada um separando rotas, modelos, contratos e
+persistência. Categorias são um catálogo estável com identificadores determinísticos; perfis
+referenciam esse catálogo por uma relação muitos-para-muitos. O módulo `scheduling` mantém aulas,
+seguidores, lembretes e notificações juntos enquanto essas regras compartilham a mesma transação.
+`apps/web/src` deve evoluir por funcionalidades, mantendo componentes genéricos apenas quando
+houver reutilização real.
+
+## Agenda e notificações
+
+Transmissões agendadas e relações de seguidores ficam no PostgreSQL. A agenda pessoal é uma
+projeção das aulas futuras dos criadores seguidos mais aulas com lembrete explícito, sem duplicar
+dados. A criação de uma aula gera notificações in-app para seguidores na mesma transação.
+
+Lembretes formam uma fila durável (`stream_reminders`): ao consultar a caixa, itens vencidos são
+materializados atomicamente em `notifications` e marcados como entregues, garantindo idempotência.
+Esse primeiro consumidor é in-app; e-mail e push devem ser consumidores assíncronos adicionais da
+mesma intenção persistida. Quando esses canais forem habilitados, um worker com retentativas e
+dead-letter queue substituirá a materialização sob demanda, sem alterar os endpoints de domínio.
 
 ## Configuração
 

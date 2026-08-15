@@ -19,7 +19,9 @@ O roadmap é orientado a resultados; datas serão definidas depois da validaçã
 ## 2. Experiência ao vivo
 
 - spike e escolha documentada do provedor/protocolo de vídeo;
-- criação, agendamento, entrada e encerramento de transmissões;
+- agendamento, seguidores, agenda pessoal e notificações in-app concluídos; criação da sala,
+  entrada e encerramento de transmissões pendentes;
+- adaptadores assíncronos de e-mail/push para lembretes;
 - chat em tempo real, presença, reações e moderação;
 - testes de carga, acessibilidade e degradação controlada.
 

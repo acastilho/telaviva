@@ -58,6 +58,17 @@ Os endpoints públicos `GET /categories` e `GET /creators/{user_id}` expõem o c
 e os perfis profissionais. Criadores autenticados configuram o próprio perfil com
 `PUT /creators/me`; verificação e papel não podem ser alterados por esse endpoint.
 
+Criadores com perfil publicado agendam aulas em `POST /streams`; a agenda pública pode ser
+consultada em `GET /streams`. Usuários autenticados seguem criadores com
+`PUT /creators/{id}/follow`, consultam sua seleção em `GET /agenda/me` e configuram um lembrete
+idempotente em `PUT /streams/{id}/reminder`. A caixa in-app fica em `GET /notifications`, com
+filtro `unread_only`, e confirma leitura em `PATCH /notifications/{id}/read`.
+
+Datas da API usam ISO 8601 com fuso horário. Níveis aceitos são `BEGINNER`, `INTERMEDIATE`,
+`ADVANCED` e `ALL_LEVELS`; acessos são `PUBLIC` ou `FOLLOWERS`. Acesso exclusivo a seguidores é
+gratuito nesta fase. Lembretes são persistentes e materializados uma única vez na caixa in-app;
+o modelo mantém o agendamento separado da entrega para receber adaptadores de e-mail e push.
+
 O envio do link de recuperação é um adaptador deliberadamente vazio nesta fase. Para produção,
 substitua `get_recovery_notifier` por uma integração de e-mail; tokens nunca são persistidos em claro.
 

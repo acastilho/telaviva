@@ -1,0 +1,79 @@
+from datetime import UTC, datetime
+from decimal import Decimal
+from uuid import UUID
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+from app.scheduling.models import AccessType, Level, NotificationKind
+
+
+class StreamCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    title: str = Field(min_length=1, max_length=160)
+    description: str = Field(default="", max_length=4000)
+    objective: str = Field(min_length=1, max_length=1000)
+    starts_at: datetime
+    estimated_duration_minutes: int = Field(ge=5, le=720)
+    category_id: UUID
+    level: Level
+    price: Decimal = Field(default=Decimal("0"), ge=0, max_digits=10, decimal_places=2)
+    access_type: AccessType = AccessType.PUBLIC
+
+    @field_validator("title", "objective")
+    @classmethod
+    def required_text(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("must not be blank")
+        return value
+
+    @field_validator("starts_at")
+    @classmethod
+    def future_aware_start(cls, value: datetime) -> datetime:
+        if value.tzinfo is None or value.utcoffset() is None:
+            raise ValueError("timezone is required")
+        if value <= datetime.now(UTC):
+            raise ValueError("must be in the future")
+        return value
+
+    @model_validator(mode="after")
+    def followers_access_is_free(self) -> "StreamCreate":
+        if self.access_type == AccessType.FOLLOWERS and self.price > 0:
+            raise ValueError("followers-only streams must be free")
+        return self
+
+
+class StreamResponse(BaseModel):
+    id: UUID
+    creator_id: UUID
+    title: str
+    description: str
+    objective: str
+    starts_at: datetime
+    estimated_duration_minutes: int
+    category_id: UUID
+    level: Level
+    price: Decimal
+    access_type: AccessType
+    created_at: datetime
+
+
+class ReminderCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    minutes_before: int = Field(default=30, ge=0, le=10080)
+
+
+class ReminderResponse(BaseModel):
+    stream_id: UUID
+    notify_at: datetime
+
+
+class NotificationResponse(BaseModel):
+    id: UUID
+    kind: NotificationKind
+    title: str
+    body: str
+    data: dict[str, str]
+    created_at: datetime
+    read_at: datetime | None
