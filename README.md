@@ -97,6 +97,16 @@ Criador e administradores aplicam `mute` ou `ban` em `POST /streams/{id}/moderat
 denunciam eventos em `POST /streams/{id}/reports`. O servidor limita cada usuário a oito
 interações por janela de dez segundos. Ban encerra conexões ativas e mute impede novas interações.
 
+O ciclo da transmissão usa `POST /streams/{id}/broadcast/start` e
+`POST /streams/{id}/broadcast/end`; iniciar e encerrar a live inicia e encerra a gravação
+automaticamente. O arquivo passa por `RECORDING`, `PROCESSING` e `READY` (ou `FAILED`). Um worker
+de mídia recebe a URL privada de upload, transcodifica, gera thumbnail e informa duração e
+metadados pelos callbacks administrativos normalizados. `GET /streams/{id}/recording` entrega
+URLs temporárias de reprodução e thumbnail somente após aplicar a mesma política comercial da
+transmissão. O storage usa o contrato S3 e aceita AWS S3 ou MinIO por `RECORDING_S3_ENDPOINT_URL`;
+bucket, região e validade das URLs usam `RECORDING_BUCKET`, `RECORDING_S3_REGION` e
+`RECORDING_URL_TTL_SECONDS`.
+
 O envio do link de recuperação é um adaptador deliberadamente vazio nesta fase. Para produção,
 substitua `get_recovery_notifier` por uma integração de e-mail; tokens nunca são persistidos em claro.
 

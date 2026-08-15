@@ -61,6 +61,16 @@ escopo de aula e assinaturas têm escopo de criador e validade. Convites são in
 pagamentos. Toda entrada REST ou WebSocket consulta a mesma política no PostgreSQL e registra a
 decisão, inclusive negativas.
 
+## Gravações
+
+O módulo `recordings` vincula uma gravação única a cada transmissão. O mesmo comando que inicia
+a transmissão cria a captura em `RECORDING`; o encerramento move a intenção durável para
+`PROCESSING`. Um adaptador de mídia captura/transcodifica fora da API, gera thumbnail e publica um
+evento normalizado que move o arquivo para `READY`, preservando duração, metadados técnicos e
+falhas. A fronteira `RecordingStorage` fornece upload e download temporários e é implementada com
+a API S3, incluindo endpoints MinIO. Objetos permanecem privados: a API só assina URLs depois de
+consultar `CommerceRepository.check_access`, mantendo acesso ao replay igual ao acesso à live.
+
 ## PIX e livro-razão
 
 O módulo `finance` depende do contrato `PaymentProvider`, não de payloads ou SDKs específicos.

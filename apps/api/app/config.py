@@ -20,6 +20,10 @@ class Settings(BaseSettings):
     password_reset_minutes: int = Field(default=30, ge=1)
     payment_provider: str = "fake"
     platform_fee_rate: Decimal = Field(default=Decimal("0.10"), ge=0, lt=1)
+    recording_bucket: str = "telaviva-recordings"
+    recording_s3_endpoint_url: str | None = None
+    recording_s3_region: str = "us-east-1"
+    recording_url_ttl_seconds: int = Field(default=900, ge=60, le=86400)
 
     @model_validator(mode="after")
     def validate_security_settings(self) -> "Settings":

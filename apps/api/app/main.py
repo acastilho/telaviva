@@ -8,6 +8,7 @@ from app.finance.routes import router as finance_router
 from app.health import HealthChecker, InfrastructureHealthChecker
 from app.identity.routes import router as identity_router
 from app.interaction.routes import router as interaction_router
+from app.recordings.routes import router as recordings_router
 from app.scheduling.routes import router as scheduling_router
 
 settings = get_settings()
@@ -25,6 +26,7 @@ app.include_router(scheduling_router)
 app.include_router(interaction_router)
 app.include_router(commerce_router)
 app.include_router(finance_router)
+app.include_router(recordings_router)
 
 
 def get_health_checker(configuration: Settings = Depends(get_settings)) -> HealthChecker:
