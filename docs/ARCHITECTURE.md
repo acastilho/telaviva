@@ -23,7 +23,7 @@ Navegador <──WebSocket──> Canal de chat (fase de streaming)
 
 ## Organização
 
-`apps/api/app` começa compacto e deve crescer por módulos de domínio (`identity`, `streams`, `chat`, `support`, `moderation`), cada um separando rotas, casos de uso e persistência. `apps/web/src` deve evoluir por funcionalidades, mantendo componentes genéricos apenas quando houver reutilização real.
+`apps/api/app` começa compacto e cresce por módulos de domínio (`identity`, `creators`, `streams`, `chat`, `support`, `moderation`), cada um separando rotas, modelos, contratos e persistência. Categorias são um catálogo estável com identificadores determinísticos; perfis referenciam esse catálogo por uma relação muitos-para-muitos. `apps/web/src` deve evoluir por funcionalidades, mantendo componentes genéricos apenas quando houver reutilização real.
 
 ## Configuração
 

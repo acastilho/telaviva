@@ -34,7 +34,10 @@ services:
       PGURL: ${MIGRATION_DATABASE_URL:-postgresql://telaviva:telaviva_local@postgres:5432/telaviva}
     volumes:
       - ./apps/api/migrations:/migrations:ro
-    command: ["sh", "-c", "psql \"$$PGURL\" -v ON_ERROR_STOP=1 -f /migrations/001_identity.sql"]
+    command:
+      - sh
+      - -c
+      - set -e; for migration in /migrations/*.sql; do psql "$$PGURL" -v ON_ERROR_STOP=1 -f "$$migration"; done
     depends_on:
       postgres:
         condition: service_healthy
