@@ -169,4 +169,10 @@ make lint       # Ruff e ESLint
 make typecheck  # mypy e TypeScript
 ```
 
+O cenário E2E da API (`apps/api/tests/test_e2e.py`) percorre cadastro, login, perfil do
+criador, agenda e descoberta, compra, entrada na transmissão via WebSocket, gorjeta,
+encerramento, processamento, replay e operação administrativa. PostgreSQL, storage e o
+processador de mídia são substituídos por adaptadores em memória; os contratos HTTP,
+autorização, JWT e ciclo entre domínios permanecem reais.
+
 As decisões de produto e engenharia estão em [docs/PRD.md](docs/PRD.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) e [docs/ROADMAP.md](docs/ROADMAP.md).
