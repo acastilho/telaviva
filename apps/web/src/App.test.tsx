@@ -44,6 +44,21 @@ describe('Dashboard do espectador', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: 'Fechar' }))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
+
+  it('navega pela biblioteca, filtra origens e abre o replay com progresso', () => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'Minha biblioteca' }))
+    expect(screen.getByRole('heading', { name: 'Minhas aulas' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'De onde você parou' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('tab', { name: 'Compradas' }))
+    expect(screen.getAllByText('Identidade visual do zero')).toHaveLength(2)
+    expect(screen.queryByText('Luz natural em retratos')).not.toBeInTheDocument()
+    fireEvent.click(screen.getAllByRole('button', { name: 'Assistir gravação Identidade visual do zero' })[0])
+    expect(screen.getByRole('region', { name: 'Player de Identidade visual do zero' })).toBeInTheDocument()
+    expect(screen.getByText(/42% assistido/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Reproduzir' }))
+    expect(screen.getByText(/52% assistido/)).toBeInTheDocument()
+  })
 })
 
 describe('Estúdio de transmissão', () => {

@@ -107,6 +107,11 @@ transmissão. O storage usa o contrato S3 e aceita AWS S3 ou MinIO por `RECORDIN
 bucket, região e validade das URLs usam `RECORDING_BUCKET`, `RECORDING_S3_REGION` e
 `RECORDING_URL_TTL_SECONDS`.
 
+`GET /recordings/library` reúne gravações prontas e autorizadas em minhas aulas, retomada,
+compras, assinaturas e histórico. `GET /recordings/{id}` entrega o replay após nova validação de
+acesso e `PUT /recordings/{id}/progress` salva a posição, limita-a à duração e conclui a aula a
+partir de 95%. A migração `008_recording_library.sql` persiste o progresso.
+
 O envio do link de recuperação é um adaptador deliberadamente vazio nesta fase. Para produção,
 substitua `get_recovery_notifier` por uma integração de e-mail; tokens nunca são persistidos em claro.
 
@@ -122,6 +127,9 @@ O dashboard do espectador reúne transmissões ao vivo, aulas agendadas, categor
 criadores. A busca e os filtros de descoberta são aplicados no cliente ao catálogo atual;
 entrar em uma transmissão exige autenticação. Enquanto os endpoints de transmissões não
 forem implementados, o frontend usa dados demonstrativos tipados para essa experiência.
+A navegação inclui a biblioteca demonstrativa com filtros por compra/assinatura, histórico,
+retomada e página de replay; a integração HTTP substituirá os dados tipados quando o fluxo de
+autenticação do frontend estiver conectado à API.
 
 O botão **Criar live** abre o estúdio do criador. Monitor, janela ou aba são escolhidos no
 seletor nativo do navegador (`getDisplayMedia`), sempre mediante autorização explícita; câmera

@@ -70,6 +70,9 @@ evento normalizado que move o arquivo para `READY`, preservando duração, metad
 falhas. A fronteira `RecordingStorage` fornece upload e download temporários e é implementada com
 a API S3, incluindo endpoints MinIO. Objetos permanecem privados: a API só assina URLs depois de
 consultar `CommerceRepository.check_access`, mantendo acesso ao replay igual ao acesso à live.
+A biblioteca projeta gravações prontas, entitlements ativos, convites e progresso sem duplicar
+permissões. O progresso é idempotente por usuário/gravação, e cada leitura ou escrita de replay
+revalida o acesso após expiração ou revogação.
 
 ## PIX e livro-razão
 

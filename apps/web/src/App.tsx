@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { LiveStudio } from './LiveStudio'
+import { RecordingLibrary } from './RecordingLibrary'
 
 type Session = {
   id: number
@@ -96,6 +97,7 @@ export function App() {
   const [maxPrice, setMaxPrice] = useState(50)
   const [loginOpen, setLoginOpen] = useState(false)
   const [studioOpen, setStudioOpen] = useState(false)
+  const [libraryOpen, setLibraryOpen] = useState(false)
 
   const filtered = useMemo(() => sessions.filter((session) => {
     const term = query.toLocaleLowerCase('pt-BR')
@@ -120,12 +122,13 @@ export function App() {
   }
 
   if (studioOpen) return <LiveStudio onClose={() => setStudioOpen(false)} />
+  if (libraryOpen) return <RecordingLibrary onClose={() => setLibraryOpen(false)} />
 
   return (
     <div className="app-shell">
       <header>
         <a className="brand" href="#inicio" aria-label="TelaViva, início"><span className="brand-icon">▶</span>TelaViva</a>
-        <nav aria-label="Navegação principal"><a className="active" href="#inicio">Descobrir</a><a href="#categorias">Categorias</a><a href="#proximas">Agenda</a></nav>
+        <nav aria-label="Navegação principal"><a className="active" href="#inicio">Descobrir</a><a href="#categorias">Categorias</a><a href="#proximas">Agenda</a><button onClick={() => setLibraryOpen(true)}>Minha biblioteca</button></nav>
         <div className="header-actions"><button className="link-button" onClick={() => setLoginOpen(true)}>Entrar</button><button className="link-button create-live" onClick={() => setStudioOpen(true)}>Criar live</button><button className="primary small" onClick={() => setLoginOpen(true)}>Criar conta</button></div>
       </header>
 

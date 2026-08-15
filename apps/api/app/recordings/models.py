@@ -11,6 +11,13 @@ class RecordingStatus(StrEnum):
     FAILED = "FAILED"
 
 
+class RecordingAccessSource(StrEnum):
+    PURCHASE = "PURCHASE"
+    SUBSCRIPTION = "SUBSCRIPTION"
+    OWNER = "OWNER"
+    INCLUDED = "INCLUDED"
+
+
 @dataclass(frozen=True)
 class Recording:
     id: UUID
@@ -25,4 +32,24 @@ class Recording:
     metadata: dict[str, object]
     failure_reason: str | None
     created_at: datetime
+    updated_at: datetime
+
+
+@dataclass(frozen=True)
+class LibraryRecording:
+    recording: Recording
+    title: str
+    creator_name: str
+    access_source: RecordingAccessSource
+    progress_seconds: int
+    completed: bool
+    last_watched_at: datetime | None
+
+
+@dataclass(frozen=True)
+class ViewingProgress:
+    recording_id: UUID
+    user_id: UUID
+    position_seconds: int
+    completed: bool
     updated_at: datetime

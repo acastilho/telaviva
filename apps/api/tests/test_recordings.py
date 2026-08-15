@@ -9,7 +9,13 @@ from app.commerce.routes import get_commerce_repository
 from app.identity.models import Role, User
 from app.identity.routes import get_current_user
 from app.main import app
-from app.recordings.models import Recording, RecordingStatus
+from app.recordings.models import (
+    LibraryRecording,
+    Recording,
+    RecordingAccessSource,
+    RecordingStatus,
+    ViewingProgress,
+)
 from app.recordings.processor import RecordingProcessor
 from app.recordings.repository import InvalidRecordingTransitionError
 from app.recordings.routes import (
@@ -33,6 +39,34 @@ class MemoryRecordingRepository:
 
     async def get_for_stream(self, selected: UUID) -> Recording | None:
         return self.recording if selected == stream_id else None
+
+    async def get(self, selected: UUID) -> Recording | None:
+        return self.recording if self.recording and self.recording.id == selected else None
+
+    async def list_library(self, user_id: UUID) -> list[LibraryRecording]:
+        if not self.recording or self.recording.status is not RecordingStatus.READY:
+            return []
+        progress = getattr(self, "progress", None)
+        return [LibraryRecording(
+            self.recording, "Aula gravada", "Marina Luz",
+            RecordingAccessSource.PURCHASE,
+            progress.position_seconds if progress else 0,
+            progress.completed if progress else False,
+            progress.updated_at if progress else None,
+        )]
+
+    async def save_progress(
+        self, recording_id: UUID, user_id: UUID, position_seconds: int
+    ) -> ViewingProgress:
+        if not self.recording or self.recording.id != recording_id:
+            raise InvalidRecordingTransitionError
+        now = datetime.now(UTC)
+        duration = self.recording.duration_seconds or 0
+        self.progress = ViewingProgress(
+            recording_id, user_id, min(position_seconds, duration),
+            duration == 0 or position_seconds / duration >= .95, now,
+        )
+        return self.progress
 
     async def start(self, selected: UUID, source_key: str) -> Recording:
         if self.recording:
@@ -189,3 +223,58 @@ def test_recording_reuses_stream_commercial_access_and_control_rules() -> None:
     commerce.granted = False
     current_user = viewer
     assert client.get(f"/streams/{stream_id}/recording").status_code == 403
+
+
+def test_library_replay_and_progress_are_grouped_and_access_controlled() -> None:
+    recording_id = client.post(f"/streams/{stream_id}/broadcast/start").json()["id"]
+    client.post(f"/streams/{stream_id}/broadcast/end")
+    global current_user
+    current_user = admin
+    client.put(f"/recordings/{recording_id}/complete", json={
+        "playback_key": "ready/class.mp4", "thumbnail_key": "ready/class.jpg",
+        "duration_seconds": 100, "metadata": {},
+    })
+    current_user = viewer
+
+    initial = client.get("/recordings/library")
+    assert initial.status_code == 200
+    assert initial.json()["purchased"][0]["title"] == "Aula gravada"
+    assert initial.json()["continue_watching"] == []
+
+    replay = client.get(f"/recordings/{recording_id}")
+    assert replay.status_code == 200
+    assert "/download/ready/class.mp4" in replay.json()["playback_url"]
+    progress = client.put(
+        f"/recordings/{recording_id}/progress", json={"position_seconds": 40}
+    )
+    assert progress.status_code == 200
+    assert progress.json()["completed"] is False
+    assert client.get("/recordings/library").json()["continue_watching"][0][
+        "progress_seconds"
+    ] == 40
+
+    commerce.granted = False
+    assert client.get(f"/recordings/{recording_id}").status_code == 403
+    assert client.put(
+        f"/recordings/{recording_id}/progress", json={"position_seconds": 50}
+    ).status_code == 403
+
+
+def test_progress_is_clamped_and_marks_recording_complete_at_95_percent() -> None:
+    recording_id = client.post(f"/streams/{stream_id}/broadcast/start").json()["id"]
+    client.post(f"/streams/{stream_id}/broadcast/end")
+    global current_user
+    current_user = admin
+    client.put(f"/recordings/{recording_id}/complete", json={
+        "playback_key": "ready/class.mp4", "thumbnail_key": "ready/class.jpg",
+        "duration_seconds": 100, "metadata": {},
+    })
+    current_user = viewer
+    response = client.put(
+        f"/recordings/{recording_id}/progress", json={"position_seconds": 120}
+    )
+    assert response.json()["position_seconds"] == 100
+    assert response.json()["completed"] is True
+    library = client.get("/recordings/library").json()
+    assert library["continue_watching"] == []
+    assert library["history"][0]["completed"] is True
