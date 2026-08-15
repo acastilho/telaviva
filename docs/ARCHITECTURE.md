@@ -39,6 +39,11 @@ Configuração segue variáveis de ambiente e princípios 12-factor. `.env.examp
 
 O modelo inicial de controle de acesso é RBAC com `admin`, `creator` e `viewer`. Toda autorização ocorre na API; ocultar controles no frontend não é controle de segurança. Pagamentos devem usar provedor compatível com o mercado brasileiro, callbacks assinados, idempotência e livro-razão auditável. Dados sensíveis não devem aparecer em logs.
 
+A identidade usa senhas Argon2, access tokens JWT curtos e refresh tokens rotativos, persistidos
+somente como SHA-256 para permitir revogação. Logout e troca de senha revogam refresh tokens.
+O cadastro público atribui `VIEWER`; a API confere o papel atual no banco em toda requisição
+protegida, portanto mudanças de papel invalidam imediatamente permissões de access tokens antigos.
+
 ## Evolução e decisões pendentes
 
 Antes do MVP serão registrados ADRs para autenticação, fornecedor/protocolo de vídeo, pagamentos, chat e estratégia de deploy. Migrações de banco serão versionadas. Filas persistentes devem ser introduzidas quando tarefas assíncronas exigirem garantia de entrega; Redis Pub/Sub sozinho não oferece essa garantia.

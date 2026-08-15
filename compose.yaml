@@ -28,6 +28,18 @@ services:
       retries: 10
     restart: unless-stopped
 
+  migrate:
+    image: postgres:16-alpine
+    environment:
+      PGURL: ${MIGRATION_DATABASE_URL:-postgresql://telaviva:telaviva_local@postgres:5432/telaviva}
+    volumes:
+      - ./apps/api/migrations:/migrations:ro
+    command: ["sh", "-c", "psql \"$$PGURL\" -v ON_ERROR_STOP=1 -f /migrations/001_identity.sql"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
   api:
     build:
       context: ./apps/api
@@ -36,6 +48,7 @@ services:
       DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://telaviva:telaviva_local@postgres:5432/telaviva}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       API_CORS_ORIGINS: '${API_CORS_ORIGINS:-["http://localhost:5173"]}'
+      JWT_SECRET: ${JWT_SECRET:-development-only-change-me-at-least-32-characters}
     ports:
       - "8000:8000"
     depends_on:
@@ -43,6 +56,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/ready')"]
       interval: 10s

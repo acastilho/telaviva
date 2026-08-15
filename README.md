@@ -39,6 +39,22 @@ pip install -e '.[dev]'
 uvicorn app.main:app --reload
 ```
 
+Antes de iniciar a API pela primeira vez, aplique a migração de identidade ao PostgreSQL:
+
+```bash
+psql "${DATABASE_URL/postgresql+asyncpg/postgresql}" -f migrations/001_identity.sql
+```
+
+No ambiente Docker Compose essa migração é aplicada automaticamente pelo serviço `migrate`.
+
+Configure `JWT_SECRET` com pelo menos 32 caracteres (obrigatório e sem valor padrão em produção).
+Os endpoints de autenticação estão sob `/auth`: cadastro, login, refresh, logout,
+recuperação/reset de senha e consulta do usuário atual. O cadastro público sempre cria `VIEWER`;
+promoções para `CREATOR` ou `ADMIN` devem ocorrer por um fluxo administrativo confiável.
+
+O envio do link de recuperação é um adaptador deliberadamente vazio nesta fase. Para produção,
+substitua `get_recovery_notifier` por uma integração de e-mail; tokens nunca são persistidos em claro.
+
 ### Frontend
 
 ```bash

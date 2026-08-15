@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import Settings, get_settings
 from app.health import HealthChecker, InfrastructureHealthChecker
+from app.identity.routes import router as identity_router
 
 settings = get_settings()
 app = FastAPI(title=settings.app_name, version="0.1.0")
@@ -13,6 +14,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.include_router(identity_router)
 
 
 def get_health_checker(configuration: Settings = Depends(get_settings)) -> HealthChecker:
