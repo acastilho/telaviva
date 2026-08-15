@@ -85,6 +85,12 @@ criadores. A busca e os filtros de descoberta são aplicados no cliente ao catá
 entrar em uma transmissão exige autenticação. Enquanto os endpoints de transmissões não
 forem implementados, o frontend usa dados demonstrativos tipados para essa experiência.
 
+O botão **Criar live** abre o estúdio do criador. Monitor, janela ou aba são escolhidos no
+seletor nativo do navegador (`getDisplayMedia`), sempre mediante autorização explícita; câmera
+e microfone usam `getUserMedia`. O estúdio oferece preview, layouts, pausa, troca de fonte,
+silenciamento e encerramento local. A distribuição para espectadores depende do provedor de
+vídeo ainda previsto no roadmap e não é simulada pelo frontend.
+
 ## Qualidade
 
 ```bash
