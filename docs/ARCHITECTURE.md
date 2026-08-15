@@ -84,6 +84,13 @@ ocorrem na mesma transação PostgreSQL. O saldo é uma projeção do ledger imu
 saque reserva fundos atomicamente. Destinos de saque são tokens opacos emitidos externamente;
 chaves PIX, agência e conta não pertencem ao modelo nem aos logs da aplicação.
 
+## Trilhas de aprendizagem
+
+O domínio `learning_paths` organiza gravações existentes em uma hierarquia ordenada de trilha,
+módulos e aulas. A publicação exige ao menos uma aula e separa rascunhos do catálogo público.
+O progresso pertence ao par usuário/aula e o percentual da trilha é calculado na leitura, sem
+armazenar uma projeção que possa divergir quando o criador reorganiza o conteúdo.
+
 ## Configuração
 
 Configuração segue variáveis de ambiente e princípios 12-factor. `.env.example` documenta nomes e valores locais não sensíveis; `.env` é ignorado. Produção deve injetar segredos pelo ambiente da plataforma. O backend valida a configuração com Pydantic Settings, enquanto valores `VITE_*` são incorporados no build do frontend.

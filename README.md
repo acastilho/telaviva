@@ -112,6 +112,12 @@ compras, assinaturas e histórico. `GET /recordings/{id}` entrega o replay após
 acesso e `PUT /recordings/{id}/progress` salva a posição, limita-a à duração e conclui a aula a
 partir de 95%. A migração `008_recording_library.sql` persiste o progresso.
 
+Criadores montam cursos em `POST /learning-paths`, acrescentam módulos e gravações como aulas,
+definem a ordem explicitamente e publicam em `PUT /learning-paths/{id}/publish`. O catálogo
+público está em `GET /learning-paths`; rascunhos são visíveis apenas ao autor ou administrador.
+Cada trilha possui descrição, nível e preço opcional. O progresso por aula é idempotente em
+`PUT /learning-paths/lessons/{id}/progress` e a resposta agrega o percentual da trilha.
+
 O envio do link de recuperação é um adaptador deliberadamente vazio nesta fase. Para produção,
 substitua `get_recovery_notifier` por uma integração de e-mail; tokens nunca são persistidos em claro.
 
