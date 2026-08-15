@@ -69,6 +69,11 @@ npm install
 npm run dev
 ```
 
+O dashboard do espectador reúne transmissões ao vivo, aulas agendadas, categorias e
+criadores. A busca e os filtros de descoberta são aplicados no cliente ao catálogo atual;
+entrar em uma transmissão exige autenticação. Enquanto os endpoints de transmissões não
+forem implementados, o frontend usa dados demonstrativos tipados para essa experiência.
+
 ## Qualidade
 
 ```bash
