@@ -1,3 +1,4 @@
+from decimal import Decimal
 from functools import lru_cache
 
 from pydantic import Field, model_validator
@@ -17,6 +18,8 @@ class Settings(BaseSettings):
     access_token_minutes: int = Field(default=15, ge=1)
     refresh_token_days: int = Field(default=30, ge=1)
     password_reset_minutes: int = Field(default=30, ge=1)
+    payment_provider: str = "fake"
+    platform_fee_rate: Decimal = Field(default=Decimal("0.10"), ge=0, lt=1)
 
     @model_validator(mode="after")
     def validate_security_settings(self) -> "Settings":
@@ -26,6 +29,8 @@ class Settings(BaseSettings):
             "development-only"
         ):
             raise ValueError("JWT_SECRET must be configured in production")
+        if self.app_env.lower() in {"production", "prod"} and self.payment_provider == "fake":
+            raise ValueError("PAYMENT_PROVIDER must be configured in production")
         return self
 
 

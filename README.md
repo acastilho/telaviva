@@ -77,6 +77,15 @@ reembolso o revoga. Antes de entregar a sala, `POST /streams/{id}/access` verifi
 acesso; o WebSocket repete obrigatoriamente essa validação. Aulas privadas usam convites criados
 em `PUT /streams/{id}/invites/{user_id}`.
 
+Gorjetas e compras avulsas são cobradas por PIX em `POST /pix/charges`. O adaptador `fake`,
+disponível somente fora de produção, exige `x-fake-signature: development-webhook` no callback
+`POST /pix/webhooks/fake`. Configure `PAYMENT_PROVIDER` para um adaptador real em produção e
+`PLATFORM_FEE_RATE` para a comissão (padrão local: `0.10`). O webhook é idempotente por provedor
+e ID de evento e alimenta um livro-razão auditável. Criadores consultam `/finance/balance` e
+`/finance/history` e solicitam saques em `/finance/withdrawals`. O saque aceita somente uma
+referência opaca `dest_*` previamente tokenizada pelo provedor; chave PIX e dados bancários não
+são recebidos nem persistidos pela TelaViva.
+
 Cada transmissão possui configuração pública em `GET /streams/{id}/interaction-settings`; o
 criador ou um administrador altera chat, perguntas e reações com `PUT` no mesmo caminho. O canal
 `WS /streams/{id}/live` exige como primeira mensagem

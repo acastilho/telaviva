@@ -61,6 +61,16 @@ escopo de aula e assinaturas têm escopo de criador e validade. Convites são in
 pagamentos. Toda entrada REST ou WebSocket consulta a mesma política no PostgreSQL e registra a
 decisão, inclusive negativas.
 
+## PIX e livro-razão
+
+O módulo `finance` depende do contrato `PaymentProvider`, não de payloads ou SDKs específicos.
+O adaptador fake existe apenas para desenvolvimento; adaptadores reais devem verificar a
+assinatura antes de produzir um evento normalizado. Eventos ficam deduplicados por
+`(provider, event_id)` e a mudança de estado, o crédito, a comissão e o entitlement da aula
+ocorrem na mesma transação PostgreSQL. O saldo é uma projeção do ledger imutável, e o pedido de
+saque reserva fundos atomicamente. Destinos de saque são tokens opacos emitidos externamente;
+chaves PIX, agência e conta não pertencem ao modelo nem aos logs da aplicação.
+
 ## Configuração
 
 Configuração segue variáveis de ambiente e princípios 12-factor. `.env.example` documenta nomes e valores locais não sensíveis; `.env` é ignorado. Produção deve injetar segredos pelo ambiente da plataforma. O backend valida a configuração com Pydantic Settings, enquanto valores `VITE_*` são incorporados no build do frontend.

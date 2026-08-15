@@ -1,9 +1,10 @@
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.config import Settings, get_settings
 from app.commerce.routes import router as commerce_router
+from app.config import Settings, get_settings
 from app.creators.routes import router as creators_router
+from app.finance.routes import router as finance_router
 from app.health import HealthChecker, InfrastructureHealthChecker
 from app.identity.routes import router as identity_router
 from app.interaction.routes import router as interaction_router
@@ -23,6 +24,7 @@ app.include_router(creators_router)
 app.include_router(scheduling_router)
 app.include_router(interaction_router)
 app.include_router(commerce_router)
+app.include_router(finance_router)
 
 
 def get_health_checker(configuration: Settings = Depends(get_settings)) -> HealthChecker:
