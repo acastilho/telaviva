@@ -65,9 +65,17 @@ idempotente em `PUT /streams/{id}/reminder`. A caixa in-app fica em `GET /notifi
 filtro `unread_only`, e confirma leitura em `PATCH /notifications/{id}/read`.
 
 Datas da API usam ISO 8601 com fuso horário. Níveis aceitos são `BEGINNER`, `INTERMEDIATE`,
-`ADVANCED` e `ALL_LEVELS`; acessos são `PUBLIC` ou `FOLLOWERS`. Acesso exclusivo a seguidores é
-gratuito nesta fase. Lembretes são persistentes e materializados uma única vez na caixa in-app;
+`ADVANCED` e `ALL_LEVELS`; acessos são `FREE`, `PAID`, `SUBSCRIBERS` ou `PRIVATE`. Lembretes são
+persistentes e materializados uma única vez na caixa in-app;
 o modelo mantém o agendamento separado da entrega para receber adaptadores de e-mail e push.
+
+Criadores cadastram produtos avulsos ou assinaturas em `POST /products`; espectadores congelam
+preço e moeda em um pedido com `POST /orders`. Adaptadores de gateway validam a assinatura do
+callback e enviam o evento normalizado ao endpoint administrativo `POST /payment-events`, sem
+acoplar o domínio ao formato de um provedor. Um pagamento aprovado cria o entitlement e um
+reembolso o revoga. Antes de entregar a sala, `POST /streams/{id}/access` verifica e audita o
+acesso; o WebSocket repete obrigatoriamente essa validação. Aulas privadas usam convites criados
+em `PUT /streams/{id}/invites/{user_id}`.
 
 Cada transmissão possui configuração pública em `GET /streams/{id}/interaction-settings`; o
 criador ou um administrador altera chat, perguntas e reações com `PUT` no mesmo caminho. O canal

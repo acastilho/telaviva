@@ -51,6 +51,16 @@ PostgreSQL para histórico e auditoria. Presença, fan-out e rate limit são ef�
 atende uma única instância; ao escalar horizontalmente, sua interface deve receber um adaptador
 Redis Pub/Sub e contadores com expiração. A mídia continua fora desse canal.
 
+## Comércio e acesso
+
+`commerce` separa catálogo, pedidos, pagamentos, entitlements e auditoria de acesso. Pedidos
+preservam o valor e a moeda vistos pelo comprador. A fronteira de integração recebe eventos
+normalizados de adaptadores autenticados, e a idempotência usa `(provider, provider_reference)`;
+assim, nenhum objeto de domínio conhece payloads ou SDKs de gateways. Entitlements avulsos têm
+escopo de aula e assinaturas têm escopo de criador e validade. Convites são independentes de
+pagamentos. Toda entrada REST ou WebSocket consulta a mesma política no PostgreSQL e registra a
+decisão, inclusive negativas.
+
 ## Configuração
 
 Configuração segue variáveis de ambiente e princípios 12-factor. `.env.example` documenta nomes e valores locais não sensíveis; `.env` é ignorado. Produção deve injetar segredos pelo ambiente da plataforma. O backend valida a configuração com Pydantic Settings, enquanto valores `VITE_*` são incorporados no build do frontend.

@@ -13,8 +13,10 @@ class Level(StrEnum):
 
 
 class AccessType(StrEnum):
-    PUBLIC = "PUBLIC"
-    FOLLOWERS = "FOLLOWERS"
+    FREE = "FREE"
+    PAID = "PAID"
+    SUBSCRIBERS = "SUBSCRIBERS"
+    PRIVATE = "PRIVATE"
 
 
 class NotificationKind(StrEnum):

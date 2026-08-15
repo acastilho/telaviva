@@ -5,6 +5,8 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect, status
 
+from app.commerce.repository import CommerceRepository
+from app.commerce.routes import get_commerce_repository
 from app.config import Settings, get_settings
 from app.identity.models import Role, User
 from app.identity.repository import IdentityRepository
@@ -128,7 +130,7 @@ async def report(stream_id: UUID, body: ReportCreate, repository: InteractionRep
 
 
 @router.websocket("/live")
-async def live(stream_id: UUID, socket: WebSocket, repository: InteractionRepository = Depends(get_interaction_repository), identities: IdentityRepository = Depends(get_identity_repository), configuration: Settings = Depends(get_settings)) -> None:
+async def live(stream_id: UUID, socket: WebSocket, repository: InteractionRepository = Depends(get_interaction_repository), commerce: CommerceRepository = Depends(get_commerce_repository), identities: IdentityRepository = Depends(get_identity_repository), configuration: Settings = Depends(get_settings)) -> None:
     await socket.accept()
     try:
         authentication = await asyncio.wait_for(socket.receive_json(), timeout=10)
@@ -140,7 +142,11 @@ async def live(stream_id: UUID, socket: WebSocket, repository: InteractionReposi
         if user is None or user.role.value != payload.get("role"):
             raise InvalidTokenError
         configured = await repository.get_settings(stream_id)
-        if configured is None or await repository.restriction(stream_id, user.id) is ModerationAction.BAN:
+        if configured is None:
+            await socket.close(code=1008, reason="Access denied")
+            return
+        access = await commerce.check_access(stream_id, user.id)
+        if not access.granted or await repository.restriction(stream_id, user.id) is ModerationAction.BAN:
             await socket.close(code=1008, reason="Access denied")
             return
     except (InvalidTokenError, TimeoutError, ValueError, KeyError):

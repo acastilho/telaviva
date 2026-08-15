@@ -155,7 +155,7 @@ def stream_body(**changes: object) -> dict[str, object]:
         "category_id": str(CATEGORY_ID),
         "level": "INTERMEDIATE",
         "price": "29.90",
-        "access_type": "PUBLIC",
+        "access_type": "PAID",
     }
     body.update(changes)
     return body
@@ -182,7 +182,8 @@ def test_stream_validation_and_creator_authorization() -> None:
     global current_user
     assert client.post("/streams", json=stream_body(starts_at="2020-01-01T10:00:00Z")).status_code == 422
     assert client.post("/streams", json=stream_body(starts_at="2030-01-01T10:00:00")).status_code == 422
-    assert client.post("/streams", json=stream_body(access_type="FOLLOWERS", price="1.00")).status_code == 422
+    assert client.post("/streams", json=stream_body(access_type="FREE", price="1.00")).status_code == 422
+    assert client.post("/streams", json=stream_body(access_type="PAID", price="0")).status_code == 422
     assert client.post("/streams", json=stream_body(category_id=str(uuid4()))).status_code == 422
     current_user = viewer
     assert client.post("/streams", json=stream_body()).status_code == 403
@@ -209,7 +210,7 @@ def test_following_builds_agenda_and_receives_new_stream_notification() -> None:
 
 def test_reminder_is_idempotent_delivered_once_and_can_be_read() -> None:
     global current_user
-    created = create_stream(price="0", starts_at=(datetime.now(UTC) + timedelta(hours=1)).isoformat())
+    created = create_stream(price="0", access_type="FREE", starts_at=(datetime.now(UTC) + timedelta(hours=1)).isoformat())
     current_user = viewer
     stream_id = created["id"]
     reminder = client.put(f"/streams/{stream_id}/reminder", json={"minutes_before": 30})

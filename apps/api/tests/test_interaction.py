@@ -3,6 +3,8 @@ from uuid import UUID, uuid4
 
 from fastapi.testclient import TestClient
 
+from app.commerce.models import AccessDecision
+from app.commerce.routes import get_commerce_repository
 from app.config import get_settings
 from app.identity.models import Role, User
 from app.identity.routes import get_current_user, get_identity_repository
@@ -27,6 +29,11 @@ stream_id = uuid4()
 class MemoryIdentityRepository:
     async def get_user_by_id(self, user_id: UUID) -> User | None:
         return {user.id: user for user in (creator, viewer, other)}.get(user_id)
+
+
+class AllowAccessRepository:
+    async def check_access(self, selected: UUID, user_id: UUID) -> AccessDecision:
+        return AccessDecision(selected, user_id, True, "FREE", None, datetime.now(UTC))
 
 
 class MemoryInteractionRepository:
@@ -99,6 +106,7 @@ def setup_function() -> None:
     app.dependency_overrides[get_interaction_repository] = lambda: repository
     app.dependency_overrides[get_current_user] = lambda: current_user
     app.dependency_overrides[get_identity_repository] = MemoryIdentityRepository
+    app.dependency_overrides[get_commerce_repository] = AllowAccessRepository
 
 
 def teardown_function() -> None:
@@ -185,5 +193,23 @@ def test_websocket_honors_disabled_channels_and_bans() -> None:
         try:
             socket.receive_json()
             raise AssertionError("banned viewer should be disconnected")
+        except Exception as error:
+            assert "1008" in str(error)
+
+
+def test_websocket_rejects_user_without_stream_entitlement() -> None:
+    class DenyAccessRepository:
+        async def check_access(self, selected: UUID, user_id: UUID) -> AccessDecision:
+            return AccessDecision(
+                selected, user_id, False, "ENTITLEMENT_REQUIRED", None, datetime.now(UTC)
+            )
+
+    app.dependency_overrides[get_commerce_repository] = DenyAccessRepository
+    token, _ = create_access_token(viewer.id, viewer.role.value, get_settings())
+    with client.websocket_connect(f"/streams/{stream_id}/live") as socket:
+        socket.send_json({"type": "authenticate", "token": token})
+        try:
+            socket.receive_json()
+            raise AssertionError("viewer without entitlement should be disconnected")
         except Exception as error:
             assert "1008" in str(error)

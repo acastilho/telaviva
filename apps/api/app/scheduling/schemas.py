@@ -18,7 +18,7 @@ class StreamCreate(BaseModel):
     category_id: UUID
     level: Level
     price: Decimal = Field(default=Decimal("0"), ge=0, max_digits=10, decimal_places=2)
-    access_type: AccessType = AccessType.PUBLIC
+    access_type: AccessType = AccessType.FREE
 
     @field_validator("title", "objective")
     @classmethod
@@ -38,9 +38,11 @@ class StreamCreate(BaseModel):
         return value
 
     @model_validator(mode="after")
-    def followers_access_is_free(self) -> "StreamCreate":
-        if self.access_type == AccessType.FOLLOWERS and self.price > 0:
-            raise ValueError("followers-only streams must be free")
+    def price_matches_access_type(self) -> "StreamCreate":
+        if self.access_type == AccessType.PAID and self.price <= 0:
+            raise ValueError("paid streams must have a positive price")
+        if self.access_type != AccessType.PAID and self.price != 0:
+            raise ValueError("only paid streams may have a price")
         return self
 
 
