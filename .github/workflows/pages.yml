@@ -14,27 +14,39 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
+  group: client-preview
   cancel-in-progress: true
 
 jobs:
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+  preview:
+    name: Package client preview
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Configure Pages
+      - name: Validate preview
+        run: test -s preview/index.html
+
+      - name: Upload downloadable preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: client-preview
+          path: preview/
+          retention-days: 30
+
+      - name: Configure Pages when enabled
+        id: pages
+        continue-on-error: true
         uses: actions/configure-pages@v5
 
-      - name: Upload preview
+      - name: Upload Pages artifact
+        if: steps.pages.outcome == 'success'
         uses: actions/upload-pages-artifact@v3
         with:
           path: preview
 
-      - name: Deploy preview
+      - name: Deploy to GitHub Pages
+        if: steps.pages.outcome == 'success'
         id: deployment
         uses: actions/deploy-pages@v4
