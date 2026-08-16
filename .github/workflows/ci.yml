@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate TelaViva repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate required project files
+        run: |
+          test -s README.md
+          test -s preview/index.html
+          grep -qi "TelaViva" README.md
+          grep -qi "TelaViva" preview/index.html
+
+      - name: Validate preview HTML structure
+        run: |
+          grep -qi '<!doctype html>' preview/index.html
+          grep -qi '<meta name="viewport"' preview/index.html
+          grep -qi '</html>' preview/index.html
