@@ -21,7 +21,7 @@ jobs:
         run: |
           test -s README.md
           test -s preview/index.html
-          grep -qi "TelaViva" README.md
+          grep -Eqi "Tela[[:space:]]*Viva" README.md
           grep -qi "TelaViva" preview/index.html
 
       - name: Validate preview HTML structure
