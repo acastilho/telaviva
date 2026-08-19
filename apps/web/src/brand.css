@@ -1,0 +1,195 @@
+.instituto-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: max-content;
+}
+
+.instituto-mark {
+  width: 44px;
+  height: 44px;
+  overflow: visible;
+  filter: drop-shadow(0 12px 28px #0007);
+}
+
+.instituto-brand-copy {
+  display: flex;
+  flex-direction: column;
+  line-height: .92;
+}
+
+.instituto-brand-copy small {
+  color: #aeb2a4;
+  font-size: .55rem;
+  font-weight: 750;
+  letter-spacing: .2em;
+  text-transform: uppercase;
+}
+
+.instituto-brand-copy strong {
+  margin-top: 3px;
+  color: #f4f1ea;
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 1.15rem;
+  font-weight: 650;
+  letter-spacing: -.045em;
+}
+
+.rainbow-arc {
+  fill: none;
+  stroke: url(#instituto-rainbow);
+  stroke-linecap: round;
+  stroke-width: 4;
+}
+
+.arc-two { opacity: .78; stroke-width: 3.1; }
+.arc-three { opacity: .55; stroke-width: 2.4; }
+
+.door-frame {
+  fill: none;
+  stroke: #e9eee0;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.4;
+}
+
+.door-panel {
+  fill: #20231c;
+  stroke: #dfe7cd;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+  transform-box: fill-box;
+  transform-origin: left center;
+  animation: institute-door-open 6s ease-in-out infinite;
+}
+
+.door-handle { fill: #d7f36b; }
+.door-glow { fill: none; stroke: url(#instituto-door); stroke-width: 5; opacity: .28; filter: url(#instituto-glow); }
+.path-light { fill: #d7f36b; opacity: .18; filter: url(#instituto-glow); }
+
+@keyframes institute-door-open {
+  0%, 16%, 100% { transform: skewY(0deg) scaleX(1); opacity: .92; }
+  44%, 72% { transform: skewY(-7deg) scaleX(.72); opacity: .72; }
+}
+
+.brand.institute-brand-link {
+  gap: 0;
+  font-size: inherit;
+  letter-spacing: normal;
+}
+
+.brand.institute-brand-link .instituto-mark { width: 42px; height: 42px; }
+
+.brand-stage {
+  position: relative;
+  width: 300px;
+  min-height: 286px;
+  display: grid;
+  place-items: center;
+  isolation: isolate;
+}
+
+.brand-stage::before,
+.brand-stage::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.brand-stage::before {
+  inset: 12px;
+  border: 1px solid #ffffff13;
+  background: radial-gradient(circle at center, #d7f36b12, transparent 58%);
+  box-shadow: inset 0 0 80px #0004, 0 30px 80px #0007;
+}
+
+.brand-stage::after {
+  width: 210px;
+  height: 210px;
+  border: 1px solid #ffffff0d;
+}
+
+.brand-stage .hero-mark {
+  position: relative;
+  z-index: 2;
+}
+
+.brand-stage .hero-mark .instituto-mark {
+  width: 190px;
+  height: 190px;
+}
+
+.brand-stage .live-now {
+  position: absolute;
+  z-index: 3;
+  right: 8px;
+  bottom: 28px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 9px 13px;
+  border: 1px solid #ffffff19;
+  border-radius: 999px;
+  background: #171814e8;
+  color: #aeb2a4;
+  font-size: .68rem;
+  box-shadow: 0 12px 30px #0007;
+}
+
+.brand-stage .live-now strong {
+  color: #d7f36b;
+  font-size: .86rem;
+}
+
+.welcome .mission {
+  display: block;
+  max-width: 650px;
+  margin-top: 24px;
+  color: #c6c9bc;
+  font-size: clamp(1rem, 1.4vw, 1.18rem);
+  font-weight: 480;
+  line-height: 1.55;
+}
+
+.welcome .mission em {
+  color: #d7f36b;
+  font-family: 'Playfair Display', Georgia, serif;
+  font-style: normal;
+}
+
+.welcome > div > p.mission { margin-top: 24px; }
+
+footer .instituto-brand-copy strong { color: white; }
+footer .instituto-mark { width: 38px; height: 38px; }
+
+.modal .modal-brand-mark {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+.modal .modal-brand-mark .instituto-mark {
+  width: 64px;
+  height: 64px;
+}
+
+@media (max-width: 900px) {
+  .brand.institute-brand-link .instituto-brand-copy small { display: none; }
+  .brand.institute-brand-link .instituto-brand-copy strong { font-size: 1rem; }
+  .brand-stage { width: 245px; min-height: 245px; }
+  .brand-stage .hero-mark .instituto-mark { width: 158px; height: 158px; }
+}
+
+@media (max-width: 720px) {
+  .brand-stage { width: 100%; min-height: 220px; }
+  .brand-stage::before { inset: 8px 14%; }
+  .brand-stage::after { width: 170px; height: 170px; }
+  .brand-stage .hero-mark .instituto-mark { width: 145px; height: 145px; }
+  .brand-stage .live-now { right: 12%; bottom: 12px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .door-panel { animation: none; transform: skewY(-5deg) scaleX(.78); }
+}
