@@ -173,12 +173,12 @@ export function LiveStudio({ onClose }: { onClose: () => void }) {
           </>}
         </div>
         <div className="studio-controls" aria-label="Controles da transmissão">
-          {state === 'live' && <button onClick={pause}>Ⅱ <span>Pausar</span></button>}
-          {state === 'paused' && <button onClick={resume}>▶ <span>Retomar</span></button>}
-          <button onClick={toggleMic} aria-pressed={!micEnabled}>{micEnabled ? '◉' : '⊘'} <span>{micEnabled ? 'Silenciar' : 'Ativar microfone'}</span></button>
-          <button onClick={toggleCamera} aria-pressed={cameraEnabled}>▣ <span>{cameraEnabled ? 'Desligar câmera' : 'Ligar câmera'}</span></button>
-          {needsScreen && <button onClick={requestScreen}>↻ <span>Trocar fonte</span></button>}
-          {(state === 'live' || state === 'paused') && <button className="danger" onClick={finish}>■ <span>Finalizar</span></button>}
+          {state === 'live' && <button onClick={pause} aria-label="Pausar">Ⅱ <span>Pausar</span></button>}
+          {state === 'paused' && <button onClick={resume} aria-label="Retomar">▶ <span>Retomar</span></button>}
+          <button onClick={toggleMic} aria-pressed={!micEnabled} aria-label={micEnabled ? 'Silenciar' : 'Ativar microfone'}>{micEnabled ? '◉' : '⊘'} <span>{micEnabled ? 'Silenciar' : 'Ativar microfone'}</span></button>
+          <button onClick={toggleCamera} aria-pressed={cameraEnabled} aria-label={cameraEnabled ? 'Desligar câmera' : 'Ligar câmera'}>▣ <span>{cameraEnabled ? 'Desligar câmera' : 'Ligar câmera'}</span></button>
+          {needsScreen && <button onClick={requestScreen} aria-label="Trocar fonte">↻ <span>Trocar fonte</span></button>}
+          {(state === 'live' || state === 'paused') && <button className="danger" onClick={finish} aria-label="Finalizar">■ <span>Finalizar</span></button>}
         </div>
       </section>
       <aside className="studio-settings">
