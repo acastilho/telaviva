@@ -1,8 +1,12 @@
-# TelaViva
+# Instituto Tela Viva
 
-**Veja. Aprenda. Apoie.**
+**Natureza, conhecimento humano e inteligência artificial.**
 
-TelaViva é uma plataforma de transmissões ao vivo na qual profissionais compartilham seu trabalho para que espectadores aprendam, interajam e apoiem seus criadores.
+O **Instituto Tela Viva** é uma plataforma de transmissões ao vivo na qual profissionais compartilham seu trabalho para que espectadores aprendam, interajam e apoiem seus criadores. A nova identidade posiciona o projeto como um instituto que conecta pessoas à natureza com apoio de inteligência artificial.
+
+> **Somos o instituto que vai te conectar à natureza, com IA.**
+
+A marca utiliza um arco multicolorido como símbolo de conexão e diversidade, com uma porta aberta abaixo representando passagem, descoberta e acesso ao conhecimento.
 
 ## Estrutura
 
@@ -90,7 +94,7 @@ disponível somente fora de produção, exige `x-fake-signature: development-web
 e ID de evento e alimenta um livro-razão auditável. Criadores consultam `/finance/balance` e
 `/finance/history` e solicitam saques em `/finance/withdrawals`. O saque aceita somente uma
 referência opaca `dest_*` previamente tokenizada pelo provedor; chave PIX e dados bancários não
-são recebidos nem persistidos pela TelaViva.
+são recebidos nem persistidos pelo Instituto Tela Viva.
 
 Cada transmissão possui configuração pública em `GET /streams/{id}/interaction-settings`; o
 criador ou um administrador altera chat, perguntas e reações com `PUT` no mesmo caminho. O canal
@@ -156,7 +160,7 @@ seletor nativo do navegador (`getDisplayMedia`), sempre mediante autorização e
 e microfone usam `getUserMedia`. O estúdio oferece preview, layouts, pausa, troca de fonte,
 silenciamento e encerramento local. A distribuição para espectadores depende do provedor de
 vídeo ainda previsto no roadmap e não é simulada pelo frontend.
-Quando suportado pelo navegador, o seletor prefere uma aba, exclui a própria aba do TelaViva e
+Quando suportado pelo navegador, o seletor prefere uma aba, exclui a própria aba do Instituto Tela Viva e
 permite trocar a fonte sem conceder acesso permanente. Áudio da tela não é capturado. Encerrar,
 fechar o estúdio ou desmontar a tela interrompe todas as trilhas de mídia.
 O estúdio permite habilitar ou desabilitar chat, perguntas e reações antes da transmissão.
