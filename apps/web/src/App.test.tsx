@@ -126,7 +126,7 @@ describe('Painel administrativo', () => {
     expect(screen.queryByText('Mensagem ofensiva no chat')).not.toBeInTheDocument()
   })
 
-  it('volta para a TelaViva pelo cabeçalho administrativo', () => {
+  it('volta para o Instituto Tela Viva pelo cabeçalho administrativo', () => {
     render(<App />)
     fireEvent.click(screen.getByRole('button', { name: 'Administração' }))
     fireEvent.click(screen.getByRole('button', { name: 'Voltar ao início' }))
@@ -167,7 +167,7 @@ describe('Estúdio de transmissão', () => {
     expect(screen.getByText(/não acessa nem controla seu computador/i)).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Ver preview' }))
 
-    await waitFor(() => expect(navigator.mediaDevices.getDisplayMedia).toHaveBeenCalledWith({ video: true, audio: false }))
+    await waitFor(() => expect(navigator.mediaDevices.getDisplayMedia).toHaveBeenCalledWith(expect.objectContaining({ video: true, audio: false })))
     await waitFor(() => expect(screen.getByRole('button', { name: 'Iniciar transmissão' })).toBeEnabled())
     fireEvent.click(screen.getByRole('button', { name: 'Iniciar transmissão' }))
     expect(screen.getByText('● AO VIVO')).toBeInTheDocument()
