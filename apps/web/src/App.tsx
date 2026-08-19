@@ -3,6 +3,7 @@ import { LiveStudio } from './LiveStudio'
 import { RecordingLibrary } from './RecordingLibrary'
 import { CreatorDashboard } from './CreatorDashboard'
 import { AdminDashboard } from './AdminDashboard'
+import { BrandMark } from './BrandMark'
 
 type Session = {
   id: number
@@ -133,15 +134,15 @@ export function App() {
   return (
     <div className="app-shell">
       <header>
-        <a className="brand" href="#inicio" aria-label="TelaViva, início"><span className="brand-icon">▶</span>TelaViva</a>
+        <a className="brand institute-brand-link" href="#inicio" aria-label="Instituto Tela Viva, início"><BrandMark /></a>
         <nav aria-label="Navegação principal"><a className="active" href="#inicio">Descobrir</a><a href="#categorias">Categorias</a><a href="#proximas">Agenda</a><button onClick={() => setLibraryOpen(true)}>Minha biblioteca</button></nav>
         <div className="header-actions"><button className="link-button" onClick={() => setLoginOpen(true)}>Entrar</button><button className="link-button" onClick={() => setDashboardOpen(true)}>Painel do criador</button><button className="link-button admin-link" onClick={() => setAdminOpen(true)}>Administração</button><button className="link-button create-live" onClick={() => setStudioOpen(true)}>Criar live</button><button className="primary small" onClick={() => setLoginOpen(true)}>Criar conta</button></div>
       </header>
 
       <main id="inicio">
         <section className="welcome">
-          <div><p className="eyebrow">BEM-VINDO À TELAVIVA</p><h1>O que você quer<br /><em>aprender hoje?</em></h1><p>Entre nos bastidores do trabalho real. Aprenda ao vivo com quem faz.</p></div>
-          <div className="live-orbit"><span className="orbit one"><b /></span><span className="orbit two"><b /></span><span className="orbit three"><b /></span><div><strong>4</strong><span>ao vivo agora</span></div></div>
+          <div><p className="eyebrow">BEM-VINDO AO INSTITUTO TELA VIVA</p><h1>O que você quer<br /><em>aprender hoje?</em></h1><p className="mission">Somos o instituto que vai te conectar à natureza, <em>com IA.</em></p></div>
+          <div className="brand-stage"><BrandMark symbolOnly className="hero-mark" /><p className="live-now"><strong>● 4</strong> ao vivo agora</p></div>
         </section>
 
         <section className="discovery" aria-label="Pesquisa e filtros">
@@ -183,9 +184,9 @@ export function App() {
         </section>
       </main>
 
-      <footer><a className="brand" href="#inicio"><span className="brand-icon">▶</span>TelaViva</a><p>Trabalho real. Conhecimento ao vivo.</p><span>© 2026 TelaViva</span></footer>
+      <footer><a className="brand institute-brand-link" href="#inicio"><BrandMark /></a><p>Natureza, conhecimento humano e inteligência artificial.</p><span>© 2026 Instituto Tela Viva</span></footer>
 
-      {loginOpen && <div className="modal-backdrop" role="presentation" onMouseDown={() => setLoginOpen(false)}><section className="modal" role="dialog" aria-modal="true" aria-labelledby="login-title" onMouseDown={(event) => event.stopPropagation()}><button className="modal-close" onClick={() => setLoginOpen(false)} aria-label="Fechar">×</button><span className="modal-icon">▶</span><p className="eyebrow">QUASE LÁ</p><h2 id="login-title">Entre para assistir</h2><p>Crie sua conta gratuita ou entre para acompanhar transmissões, conversar com profissionais e salvar suas aulas.</p><button className="primary full">Criar conta grátis</button><button className="secondary full">Já tenho uma conta</button><small>Assistir transmissões requer login.</small></section></div>}
+      {loginOpen && <div className="modal-backdrop" role="presentation" onMouseDown={() => setLoginOpen(false)}><section className="modal" role="dialog" aria-modal="true" aria-labelledby="login-title" onMouseDown={(event) => event.stopPropagation()}><button className="modal-close" onClick={() => setLoginOpen(false)} aria-label="Fechar">×</button><BrandMark symbolOnly className="modal-brand-mark" /><p className="eyebrow">QUASE LÁ</p><h2 id="login-title">Entre para assistir</h2><p>Crie sua conta gratuita ou entre para acompanhar transmissões, conversar com profissionais e salvar suas aulas.</p><button className="primary full">Criar conta grátis</button><button className="secondary full">Já tenho uma conta</button><small>Assistir transmissões requer login.</small></section></div>}
     </div>
   )
 }
