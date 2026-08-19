@@ -53,7 +53,7 @@ export function AdminDashboard({ onClose }: AdminDashboardProps) {
 
   return <div className="admin-dashboard">
     <aside className="admin-sidebar">
-      <button className="brand brand-button institute-brand-link" onClick={onClose} aria-label="Voltar ao Instituto Tela Viva"><BrandMark /></button>
+      <button className="brand brand-button institute-brand-link" onClick={onClose} aria-label="Voltar ao início"><BrandMark /></button>
       <div className="admin-profile"><span>AD</span><div><strong>Administrador</strong><small>Acesso protegido</small></div></div>
       <nav aria-label="Navegação administrativa">
         {sections.map(([id, icon, label]) => <button key={id} className={active === id ? 'active' : ''} onClick={() => navigate(id)}><i>{icon}</i><span>{label}</span></button>)}
