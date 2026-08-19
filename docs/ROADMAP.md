@@ -1,4 +1,4 @@
-# Roadmap
+# Roadmap — Instituto Tela Viva
 
 O roadmap é orientado a resultados; datas serão definidas depois da validação de capacidade e riscos.
 
@@ -7,13 +7,16 @@ O roadmap é orientado a resultados; datas serão definidas depois da validaçã
 - monorepo com React/TypeScript e FastAPI;
 - PostgreSQL e Redis no ambiente local;
 - configuração por ambiente, health checks, testes e documentação;
-- pipeline de qualidade preparado para CI.
+- pipeline de qualidade preparado para CI;
+- identidade pública Instituto Tela Viva com arco multicolorido, porta aberta e posicionamento natureza + IA.
 
 ## 1. Identidade e descoberta
 
 - cadastro, login, recuperação e RBAC (`admin`, `creator`, `viewer`);
 - perfis públicos e onboarding de criador;
 - catálogo, categorias, busca e status ao vivo;
+- descoberta de experiências ligadas à natureza e conhecimento prático;
+- base para recomendações assistidas por IA com transparência e controle do usuário;
 - migrações, telemetria e trilha de auditoria inicial.
 
 ## 2. Experiência ao vivo
