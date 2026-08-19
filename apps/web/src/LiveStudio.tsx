@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { BrandMark } from './BrandMark'
 
 type Layout = 'screen' | 'screen-camera' | 'camera'
 type LiveState = 'preparing' | 'preview' | 'live' | 'paused' | 'ended'
@@ -156,7 +157,7 @@ export function LiveStudio({ onClose }: { onClose: () => void }) {
 
   return <div className="studio-shell" role="dialog" aria-modal="true" aria-labelledby="studio-title">
     <header className="studio-header">
-      <a className="brand" href="#inicio"><span className="brand-icon">▶</span>TelaViva</a>
+      <a className="brand institute-brand-link" href="#inicio" aria-label="Instituto Tela Viva"><BrandMark /></a>
       <span className={`studio-status ${state}`}>{state === 'live' ? '● AO VIVO' : state === 'paused' ? 'Ⅱ PAUSADA' : state === 'ended' ? 'FINALIZADA' : 'ESTÚDIO'}</span>
       <button className="studio-close" onClick={() => { finish(); onClose() }} aria-label="Fechar estúdio">×</button>
     </header>
@@ -172,12 +173,12 @@ export function LiveStudio({ onClose }: { onClose: () => void }) {
           </>}
         </div>
         <div className="studio-controls" aria-label="Controles da transmissão">
-          {state === 'live' && <button onClick={pause}>Ⅱ <span>Pausar</span></button>}
-          {state === 'paused' && <button onClick={resume}>▶ <span>Retomar</span></button>}
-          <button onClick={toggleMic} aria-pressed={!micEnabled}>{micEnabled ? '◉' : '⊘'} <span>{micEnabled ? 'Silenciar' : 'Ativar microfone'}</span></button>
-          <button onClick={toggleCamera} aria-pressed={cameraEnabled}>▣ <span>{cameraEnabled ? 'Desligar câmera' : 'Ligar câmera'}</span></button>
-          {needsScreen && <button onClick={requestScreen}>↻ <span>Trocar fonte</span></button>}
-          {(state === 'live' || state === 'paused') && <button className="danger" onClick={finish}>■ <span>Finalizar</span></button>}
+          {state === 'live' && <button onClick={pause} aria-label="Pausar">Ⅱ <span>Pausar</span></button>}
+          {state === 'paused' && <button onClick={resume} aria-label="Retomar">▶ <span>Retomar</span></button>}
+          <button onClick={toggleMic} aria-pressed={!micEnabled} aria-label={micEnabled ? 'Silenciar' : 'Ativar microfone'}>{micEnabled ? '◉' : '⊘'} <span>{micEnabled ? 'Silenciar' : 'Ativar microfone'}</span></button>
+          <button onClick={toggleCamera} aria-pressed={cameraEnabled} aria-label={cameraEnabled ? 'Desligar câmera' : 'Ligar câmera'}>▣ <span>{cameraEnabled ? 'Desligar câmera' : 'Ligar câmera'}</span></button>
+          {needsScreen && <button onClick={requestScreen} aria-label="Trocar fonte">↻ <span>Trocar fonte</span></button>}
+          {(state === 'live' || state === 'paused') && <button className="danger" onClick={finish} aria-label="Finalizar">■ <span>Finalizar</span></button>}
         </div>
       </section>
       <aside className="studio-settings">
@@ -196,7 +197,7 @@ export function LiveStudio({ onClose }: { onClose: () => void }) {
           {Object.values(interactions).filter(Boolean).length} de 3 canais habilitados. Você pode alterá-los durante a live.
         </p>
         {needsScreen && <div className="source-card"><div><strong>Monitor, janela ou aba</strong><p>O navegador abrirá um seletor seguro para você escolher exatamente o que compartilhar.</p></div><button className="secondary" onClick={requestScreen}>{screen ? 'Trocar fonte' : 'Escolher fonte'}</button></div>}
-        <div className="permission-note"><strong>Você está no controle</strong><p>A TelaViva não acessa nem controla seu computador. O compartilhamento só começa após sua autorização explícita e pode ser interrompido a qualquer momento.</p></div>
+        <div className="permission-note"><strong>Você está no controle</strong><p>O Instituto Tela Viva não acessa nem controla seu computador. O compartilhamento só começa após sua autorização explícita e pode ser interrompido a qualquer momento.</p></div>
         {error && <p className="studio-error" role="alert">{error}</p>}
         <div className="studio-actions">
           {(state === 'preparing' || state === 'ended') && <button className="secondary" onClick={preview}>Ver preview</button>}

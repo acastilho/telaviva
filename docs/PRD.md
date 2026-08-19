@@ -1,14 +1,16 @@
-# PRD — TelaViva
+# PRD — Instituto Tela Viva
 
 ## Visão
 
-TelaViva aproxima pessoas do trabalho real de profissionais por meio de transmissões ao vivo. O produto transforma o processo de criação em oportunidade de aprendizagem, interação e apoio financeiro.
+O Instituto Tela Viva aproxima pessoas do conhecimento prático, da natureza e do trabalho real de profissionais por meio de transmissões ao vivo, experiências e conteúdos educativos. A inteligência artificial atua como apoio para conectar interesses, conteúdos e jornadas de aprendizagem sem substituir a experiência humana.
 
-**Slogan:** Veja. Aprenda. Apoie.
+**Mensagem institucional:** Somos o instituto que vai te conectar à natureza, com IA.
+
+**Princípios da marca:** conexão, descoberta, natureza, conhecimento humano e tecnologia responsável.
 
 ## Problema
 
-Conteúdo educacional costuma mostrar apenas o resultado final. Alunos perdem decisões, erros e contexto do processo; profissionais, por sua vez, têm poucas formas de monetizar o compartilhamento espontâneo da rotina.
+Conteúdo educacional costuma mostrar apenas o resultado final. Alunos perdem decisões, erros e contexto do processo; profissionais, por sua vez, têm poucas formas de monetizar o compartilhamento espontâneo da rotina. Ao mesmo tempo, experiências ligadas à natureza e ao conhecimento prático ficam dispersas, difíceis de descobrir e pouco conectadas a ferramentas inteligentes de aprendizagem.
 
 ## Públicos e permissões
 
@@ -26,7 +28,8 @@ Conteúdo educacional costuma mostrar apenas o resultado final. Alunos perdem de
 - sala de transmissão com vídeo e chat em tempo real;
 - apoio financeiro com histórico e confirmação;
 - moderação básica, denúncia e bloqueio;
-- observabilidade e indicadores básicos de produto.
+- observabilidade e indicadores básicos de produto;
+- identidade institucional preparada para experiências de natureza e recursos assistidos por IA.
 
 ## Fora do MVP
 

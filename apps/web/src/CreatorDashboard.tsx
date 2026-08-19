@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { BrandMark } from './BrandMark'
 
 type CreatorDashboardProps = {
   onClose: () => void
@@ -46,7 +47,7 @@ export function CreatorDashboard({ onClose, onStartLive }: CreatorDashboardProps
   return (
     <div className="creator-dashboard">
       <aside className="creator-sidebar">
-        <button className="brand brand-button" onClick={onClose} aria-label="Voltar ao início"><span className="brand-icon">▶</span>TelaViva</button>
+        <button className="brand brand-button institute-brand-link" onClick={onClose} aria-label="Voltar ao Instituto Tela Viva"><BrandMark /></button>
         <div className="creator-profile"><span className="dashboard-avatar">ML</span><div><strong>Marina Luz</strong><small>Conta de criador</small></div></div>
         <nav aria-label="Navegação do painel">
           <a className="active" href="#visao-geral">▦ <span>Visão geral</span></a>
@@ -56,7 +57,7 @@ export function CreatorDashboard({ onClose, onStartLive }: CreatorDashboardProps
           <a href="#analytics">⌁ <span>Analytics</span></a>
           <a href="#financeiro">R$ <span>Financeiro</span></a>
         </nav>
-        <button className="sidebar-back" onClick={onClose}>← Voltar para a TelaViva</button>
+        <button className="sidebar-back" onClick={onClose}>← Voltar para o Instituto Tela Viva</button>
       </aside>
 
       <main className="creator-main" id="visao-geral">

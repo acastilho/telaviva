@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { BrandMark } from './BrandMark'
 
 type Recording = {
   id: number
@@ -29,7 +30,7 @@ export function RecordingLibrary({ onClose }: { onClose: () => void }) {
 
   return <div className="library-shell">
     <header>
-      <button className="brand brand-button" onClick={onClose}><span className="brand-icon">▶</span>TelaViva</button>
+      <button className="brand brand-button institute-brand-link" onClick={onClose} aria-label="Voltar ao Instituto Tela Viva"><BrandMark /></button>
       <nav aria-label="Navegação da biblioteca"><button onClick={onClose}>Descobrir</button><button className="active">Minha biblioteca</button></nav>
     </header>
     <main className="library-main">
