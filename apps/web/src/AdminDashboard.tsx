@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { BrandMark } from './BrandMark'
 
 type AdminDashboardProps = { onClose: () => void }
 type Status = 'Ativo' | 'Pendente' | 'Bloqueado' | 'Em análise'
@@ -52,12 +53,12 @@ export function AdminDashboard({ onClose }: AdminDashboardProps) {
 
   return <div className="admin-dashboard">
     <aside className="admin-sidebar">
-      <button className="brand brand-button" onClick={onClose} aria-label="Voltar ao início"><span className="brand-icon">▶</span>TelaViva</button>
+      <button className="brand brand-button institute-brand-link" onClick={onClose} aria-label="Voltar ao Instituto Tela Viva"><BrandMark /></button>
       <div className="admin-profile"><span>AD</span><div><strong>Administrador</strong><small>Acesso protegido</small></div></div>
       <nav aria-label="Navegação administrativa">
         {sections.map(([id, icon, label]) => <button key={id} className={active === id ? 'active' : ''} onClick={() => navigate(id)}><i>{icon}</i><span>{label}</span></button>)}
       </nav>
-      <button className="sidebar-back" onClick={onClose}>← Voltar para a TelaViva</button>
+      <button className="sidebar-back" onClick={onClose}>← Voltar para o Instituto Tela Viva</button>
     </aside>
 
     <main className="admin-main" id="visao-geral">
