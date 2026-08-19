@@ -15,7 +15,7 @@ orientation = portrait
 fullscreen = 0
 
 # MediaProjection + microphone recording while the UI is in another app.
-android.permissions = android.permission.RECORD_AUDIO,android.permission.FOREGROUND_SERVICE,android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION,android.permission.FOREGROUND_SERVICE_MICROPHONE
+android.permissions = android.permission.RECORD_AUDIO,android.permission.WAKE_LOCK,android.permission.FOREGROUND_SERVICE,android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION,android.permission.FOREGROUND_SERVICE_MICROPHONE
 
 # Android 14+ requires the foreground service type before getMediaProjection().
 services = recorder:services/recorder.py:foreground:foregroundServiceType=mediaProjection|microphone
