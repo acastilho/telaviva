@@ -1,5 +1,7 @@
 # Instituto Tela Viva
 
+**Atualizado em: 20/08/2026**
+
 **Natureza, conhecimento humano e inteligência artificial.**
 
 O **Instituto Tela Viva** é uma plataforma de transmissões ao vivo na qual profissionais compartilham seu trabalho para que espectadores aprendam, interajam e apoiem seus criadores. A nova identidade posiciona o projeto como um instituto que conecta pessoas à natureza com apoio de inteligência artificial.
