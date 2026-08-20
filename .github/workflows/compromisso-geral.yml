@@ -1,0 +1,59 @@
+name: Compromisso geral da documentacao
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '*.md'
+      - '**/*.md'
+      - '.github/workflows/compromisso-geral.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: compromisso-geral-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  aplicar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Aplicar compromisso geral
+        shell: bash
+        run: |
+          set -euo pipefail
+          marker='<!-- COMPROMISSO-GERAL-A-CASTILHO -->'
+          tmp="$(mktemp)"
+          cat > "$tmp" <<'EOF'
+          <!-- COMPROMISSO-GERAL-A-CASTILHO -->
+
+          ---
+
+          ## Compromisso Geral
+
+          **Sempre na melhor prática. No caminho do bem maior.**
+
+          **Ir até o fim sem sair do caminho, seja ele qual for.**
+          EOF
+          changed=0
+          while IFS= read -r -d '' file; do
+            if ! grep -Fq "$marker" "$file"; then
+              printf '\n' >> "$file"
+              cat "$tmp" >> "$file"
+              printf '\n' >> "$file"
+              changed=1
+            fi
+          done < <(git ls-files -z -- '*.md')
+          rm -f "$tmp"
+          [[ "$changed" -eq 1 ]] || exit 0
+          git config user.name 'a-castilho-docs-bot'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git diff --cached --quiet && exit 0
+          git commit -m 'docs: aplicar compromisso geral em toda documentação'
+          git push origin "HEAD:${GITHUB_REF_NAME}"
