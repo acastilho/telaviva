@@ -41,3 +41,14 @@ O roadmap é orientado a resultados; datas serão definidas depois da validaçã
 - SLOs, alertas, backups e teste de restauração;
 - hardening de segurança, privacidade/LGPD e resposta a incidentes;
 - experimento beta, análise das métricas do PRD e ajustes de retenção.
+
+<!-- COMPROMISSO-GERAL-A-CASTILHO -->
+
+---
+
+## Compromisso Geral
+
+**Sempre na melhor prática. No caminho do bem maior.**
+
+**Ir até o fim sem sair do caminho, seja ele qual for.**
+

@@ -113,3 +113,14 @@ protegida, portanto mudanças de papel invalidam imediatamente permissões de ac
 ## Evolução e decisões pendentes
 
 Antes do MVP serão registrados ADRs para autenticação, fornecedor/protocolo de vídeo, pagamentos, chat e estratégia de deploy. Migrações de banco serão versionadas. Filas persistentes devem ser introduzidas quando tarefas assíncronas exigirem garantia de entrega; Redis Pub/Sub sozinho não oferece essa garantia.
+
+<!-- COMPROMISSO-GERAL-A-CASTILHO -->
+
+---
+
+## Compromisso Geral
+
+**Sempre na melhor prática. No caminho do bem maior.**
+
+**Ir até o fim sem sair do caminho, seja ele qual for.**
+

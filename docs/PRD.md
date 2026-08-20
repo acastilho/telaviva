@@ -56,3 +56,14 @@ Conteúdo educacional costuma mostrar apenas o resultado final. Alunos perdem de
 - tolerância a falhas e escalabilidade independente de vídeo, chat e API;
 - logs estruturados, métricas e rastreamento de erros;
 - disponibilidade e latência com metas definidas antes do beta.
+
+<!-- COMPROMISSO-GERAL-A-CASTILHO -->
+
+---
+
+## Compromisso Geral
+
+**Sempre na melhor prática. No caminho do bem maior.**
+
+**Ir até o fim sem sair do caminho, seja ele qual for.**
+

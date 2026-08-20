@@ -180,3 +180,14 @@ processador de mídia são substituídos por adaptadores em memória; os contrat
 autorização, JWT e ciclo entre domínios permanecem reais.
 
 As decisões de produto e engenharia estão em [docs/PRD.md](docs/PRD.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) e [docs/ROADMAP.md](docs/ROADMAP.md).
+
+<!-- COMPROMISSO-GERAL-A-CASTILHO -->
+
+---
+
+## Compromisso Geral
+
+**Sempre na melhor prática. No caminho do bem maior.**
+
+**Ir até o fim sem sair do caminho, seja ele qual for.**
+
