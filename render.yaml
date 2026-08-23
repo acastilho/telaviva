@@ -6,3 +6,23 @@ services:
     buildCommand: echo "TelaViva static homologation preview"
     staticPublishPath: .
     autoDeployTrigger: off
+
+  - type: web
+    name: telaviva-api-homolog
+    runtime: python
+    rootDir: apps/api
+    buildCommand: pip install .
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health/live
+    autoDeployTrigger: off
+    envVars:
+      - key: APP_ENV
+        value: homologation
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: API_CORS_ORIGINS
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
