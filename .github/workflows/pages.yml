@@ -1,10 +1,10 @@
-name: Client Preview
+name: Homologação Web
 
 on:
   push:
     branches: [main]
     paths:
-      - 'preview/**'
+      - 'apps/web/**'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 
@@ -14,39 +14,44 @@ permissions:
   id-token: write
 
 concurrency:
-  group: client-preview
+  group: github-pages
   cancel-in-progress: true
 
 jobs:
-  preview:
-    name: Package client preview
+  deploy:
+    name: Build e publicar homologação
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Validate preview
-        run: test -s preview/index.html
-
-      - name: Upload downloadable preview
-        uses: actions/upload-artifact@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          name: client-preview
-          path: preview/
-          retention-days: 30
+          node-version: 22
 
-      - name: Configure Pages when enabled
-        id: pages
-        continue-on-error: true
+      - name: Instalar dependências
+        working-directory: apps/web
+        run: npm install --no-audit --no-fund
+
+      - name: Validar frontend
+        working-directory: apps/web
+        run: |
+          npm run typecheck
+          npm run test -- --run
+          npm run build
+
+      - name: Configurar Pages
         uses: actions/configure-pages@v5
 
-      - name: Upload Pages artifact
-        if: steps.pages.outcome == 'success'
+      - name: Empacotar build
         uses: actions/upload-pages-artifact@v3
         with:
-          path: preview
+          path: apps/web/dist
 
-      - name: Deploy to GitHub Pages
-        if: steps.pages.outcome == 'success'
+      - name: Publicar
         id: deployment
         uses: actions/deploy-pages@v4
