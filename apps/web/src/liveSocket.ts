@@ -12,6 +12,7 @@ type StoredSession = {
 const SESSION_KEY = 'tv_session_v1'
 const configuredApiBase = (import.meta.env.VITE_API_URL as string | undefined)?.trim().replace(/\/$/, '') ?? ''
 const configuredStreamId = (import.meta.env.VITE_HOMOLOG_STREAM_ID as string | undefined)?.trim() ?? ''
+const configuredSocketPath = (import.meta.env.VITE_HOMOLOG_SOCKET_PATH as string | undefined)?.trim() ?? ''
 
 function readAccessToken(): string | null {
   if (typeof window === 'undefined') return null
@@ -33,11 +34,21 @@ function websocketBase(apiBase: string): string {
   return ''
 }
 
+function normalizePath(path: string): string {
+  if (!path) return ''
+  return path.startsWith('/') ? path : `/${path}`
+}
+
 export function homologationLiveConfiguration() {
+  const socketPath = configuredSocketPath
+    ? normalizePath(configuredSocketPath)
+    : configuredStreamId
+      ? `/streams/${encodeURIComponent(configuredStreamId)}/live`
+      : ''
   return {
     apiBase: configuredApiBase,
-    streamId: configuredStreamId,
-    enabled: Boolean(configuredApiBase && configuredStreamId),
+    socketPath,
+    enabled: Boolean(configuredApiBase && socketPath),
   }
 }
 
@@ -78,7 +89,7 @@ export class LiveSocketClient {
   }
 
   private open(reconnecting: boolean) {
-    const { apiBase, streamId, enabled } = homologationLiveConfiguration()
+    const { apiBase, socketPath, enabled } = homologationLiveConfiguration()
     const token = readAccessToken()
     const base = websocketBase(apiBase)
 
@@ -88,7 +99,7 @@ export class LiveSocketClient {
     }
 
     this.onStatus(reconnecting ? 'reconnecting' : 'connecting')
-    const socket = new WebSocket(`${base}/streams/${encodeURIComponent(streamId)}/live`)
+    const socket = new WebSocket(`${base}${socketPath}`)
     this.socket = socket
 
     socket.onopen = () => {
