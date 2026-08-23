@@ -1,6 +1,22 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { App } from './App'
 
+vi.mock('./peerBroadcast', async () => {
+  const actual = await vi.importActual<typeof import('./peerBroadcast')>('./peerBroadcast')
+  return {
+    ...actual,
+    createLiveRoom: vi.fn(() => ({
+      addStream: vi.fn(),
+      removeStream: vi.fn(),
+      leave: vi.fn(),
+      getPeers: vi.fn(() => ({})),
+      onPeerJoin: undefined,
+      onPeerLeave: undefined,
+      onPeerStream: undefined,
+    })),
+  }
+})
+
 describe('Instituto Tela Viva', () => {
   beforeEach(() => {
     window.localStorage.clear()
@@ -128,7 +144,7 @@ describe('Estúdio de transmissão', () => {
   it('liga a câmera e mostra a prévia no modo somente câmera', async () => {
     render(<App />)
     fireEvent.click(screen.getByRole('button', { name: 'Criar live' }))
-    fireEvent.click(screen.getByRole('radio', { name: 'Somente câmera' }))
+    fireEvent.click(screen.getByRole('radio', { name: /Somente câmera/ }))
 
     await waitFor(() => expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledWith(expect.objectContaining({ video: expect.any(Object), audio: false })))
     await waitFor(() => expect(screen.getByLabelText('Prévia da câmera')).toBeInTheDocument())
