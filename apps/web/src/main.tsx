@@ -5,6 +5,7 @@ import './styles.css'
 import './brand.css'
 import './official-brand.css'
 import './product.css'
+import './system.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
