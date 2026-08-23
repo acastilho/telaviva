@@ -10,10 +10,18 @@ class Role(StrEnum):
     VIEWER = "VIEWER"
 
 
+class Audience(StrEnum):
+    CHILD = "CHILD"
+    TEEN = "TEEN"
+    ADULT = "ADULT"
+
+
 @dataclass(frozen=True)
 class User:
     id: UUID
     email: str
     password_hash: str
     role: Role
+    audience: Audience
+    guardian_email: str | None
     created_at: datetime
