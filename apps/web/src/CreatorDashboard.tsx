@@ -1,9 +1,20 @@
-import { useState } from 'react'
+import { FormEvent, useMemo, useState } from 'react'
 import { BrandMark } from './BrandMark'
 
 type CreatorDashboardProps = {
   onClose: () => void
   onStartLive: () => void
+}
+
+type ScheduledClass = {
+  id: number
+  day: string
+  month: string
+  title: string
+  time: string
+  students: number
+  audience: string
+  chatEnabled: boolean
 }
 
 const metrics = [
@@ -13,10 +24,10 @@ const metrics = [
   { label: 'Vendas', value: '196', change: '+12%', icon: '↗' },
 ]
 
-const upcomingClasses = [
-  { day: '18', month: 'AGO', title: 'Direção de arte para marcas reais', time: '19:00', students: 128 },
-  { day: '22', month: 'AGO', title: 'Figma: componentes que escalam', time: '18:30', students: 96 },
-  { day: '29', month: 'AGO', title: 'Como apresentar um projeto criativo', time: '20:00', students: 74 },
+const initialUpcomingClasses: ScheduledClass[] = [
+  { id: 1, day: '18', month: 'AGO', title: 'Direção de arte para marcas reais', time: '19:00', students: 128, audience: 'Adultos', chatEnabled: true },
+  { id: 2, day: '22', month: 'AGO', title: 'Figma: componentes que escalam', time: '18:30', students: 96, audience: 'Adolescentes e adultos', chatEnabled: true },
+  { id: 3, day: '29', month: 'AGO', title: 'Como apresentar um projeto criativo', time: '20:00', students: 74, audience: 'Adultos', chatEnabled: true },
 ]
 
 const recordings = [
@@ -32,16 +43,58 @@ const transactions = [
   { label: 'Saque processado', date: '12 ago, 09:10', value: '− R$ 1.500,00', kind: 'Saque' },
 ]
 
+const monthNames = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ']
+
 export function CreatorDashboard({ onClose, onStartLive }: CreatorDashboardProps) {
   const [period, setPeriod] = useState('30 dias')
   const [priceOpen, setPriceOpen] = useState(false)
   const [classPrice, setClassPrice] = useState('89,00')
   const [subscriptionPrice, setSubscriptionPrice] = useState('39,00')
   const [saved, setSaved] = useState(false)
+  const [scheduleOpen, setScheduleOpen] = useState(false)
+  const [upcomingClasses, setUpcomingClasses] = useState<ScheduledClass[]>(initialUpcomingClasses)
+  const [scheduledMessage, setScheduledMessage] = useState('')
+  const [newClassTitle, setNewClassTitle] = useState('')
+  const [newClassDate, setNewClassDate] = useState('')
+  const [newClassTime, setNewClassTime] = useState('19:00')
+  const [newClassAudience, setNewClassAudience] = useState('Adultos')
+  const [newClassChat, setNewClassChat] = useState(true)
+
+  const nextClass = useMemo(() => upcomingClasses[0], [upcomingClasses])
 
   const savePrices = () => {
     setSaved(true)
     setPriceOpen(false)
+  }
+
+  const resetScheduleForm = () => {
+    setNewClassTitle('')
+    setNewClassDate('')
+    setNewClassTime('19:00')
+    setNewClassAudience('Adultos')
+    setNewClassChat(true)
+  }
+
+  const scheduleClass = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!newClassTitle.trim() || !newClassDate || !newClassTime) return
+
+    const parsedDate = new Date(`${newClassDate}T12:00:00`)
+    const item: ScheduledClass = {
+      id: Date.now(),
+      day: String(parsedDate.getDate()).padStart(2, '0'),
+      month: monthNames[parsedDate.getMonth()] ?? '',
+      title: newClassTitle.trim(),
+      time: newClassTime,
+      students: 0,
+      audience: newClassAudience,
+      chatEnabled: newClassChat,
+    }
+
+    setUpcomingClasses((current) => [...current, item])
+    setScheduledMessage(`Aula “${item.title}” cadastrada. ${item.chatEnabled ? 'Chat ao vivo habilitado.' : 'Chat desabilitado.'}`)
+    setScheduleOpen(false)
+    resetScheduleForm()
   }
 
   return (
@@ -62,9 +115,27 @@ export function CreatorDashboard({ onClose, onStartLive }: CreatorDashboardProps
 
       <main className="creator-main" id="visao-geral">
         <header className="creator-topbar">
-          <div><p className="eyebrow">PAINEL DO CRIADOR</p><h1>Olá, Marina <span>✦</span></h1><p>Acompanhe sua comunidade e faça seu trabalho crescer.</p></div>
-          <button className="primary live-cta" onClick={onStartLive}><i /> Iniciar transmissão</button>
+          <div><p className="eyebrow">PAINEL DO CRIADOR</p><h1>Olá, Marina <span>✦</span></h1><p>Cadastre aulas, acompanhe sua comunidade e transmita ao vivo com chat.</p></div>
+          <div className="creator-top-actions">
+            <button className="secondary schedule-cta" onClick={() => setScheduleOpen(true)}>＋ Cadastrar aula</button>
+            <button className="primary live-cta" onClick={onStartLive}><i /> Transmitir ao vivo</button>
+          </div>
         </header>
+
+        <section className="creator-command-center" aria-label="Central de trabalho do criador">
+          <article>
+            <span className="command-icon">◷</span>
+            <div><small>PRÓXIMA AULA</small><strong>{nextClass?.title ?? 'Nenhuma aula cadastrada'}</strong><p>{nextClass ? `${nextClass.day} ${nextClass.month} · ${nextClass.time} · ${nextClass.audience}` : 'Cadastre uma aula para começar.'}</p></div>
+            <button onClick={() => setScheduleOpen(true)}>Cadastrar</button>
+          </article>
+          <article>
+            <span className="command-icon live">●</span>
+            <div><small>TRANSMISSÃO</small><strong>Estúdio ao vivo</strong><p>Câmera, tela, microfone e chat no mesmo fluxo.</p></div>
+            <button className="command-live" onClick={onStartLive}>Abrir estúdio</button>
+          </article>
+        </section>
+
+        {scheduledMessage && <p className="creator-success" role="status">✓ {scheduledMessage}</p>}
 
         <section className="metric-grid" aria-label="Resumo do desempenho">
           {metrics.map((metric) => <article key={metric.label}><span className="metric-icon">{metric.icon}</span><p>{metric.label}</p><strong>{metric.value}</strong><small>{metric.change} <i>no período</i></small></article>)}
@@ -89,8 +160,8 @@ export function CreatorDashboard({ onClose, onStartLive }: CreatorDashboardProps
         </div>
 
         <section className="dashboard-card classes-card" id="aulas">
-          <div className="dashboard-card-heading"><div><p className="eyebrow">SUA AGENDA</p><h2>Próximas aulas</h2></div><button>+ Agendar aula</button></div>
-          <div className="dashboard-class-list">{upcomingClasses.map((item) => <article key={item.title}><div className="calendar-date"><strong>{item.day}</strong><span>{item.month}</span></div><div><h3>{item.title}</h3><p>{item.time} · {item.students} alunos inscritos</p></div><button aria-label={`Opções de ${item.title}`}>•••</button></article>)}</div>
+          <div className="dashboard-card-heading"><div><p className="eyebrow">SUA AGENDA</p><h2>Aulas cadastradas</h2></div><button onClick={() => setScheduleOpen(true)}>+ Cadastrar aula</button></div>
+          <div className="dashboard-class-list">{upcomingClasses.map((item) => <article key={item.id}><div className="calendar-date"><strong>{item.day}</strong><span>{item.month}</span></div><div className="class-row-copy"><h3>{item.title}</h3><p>{item.time} · {item.students} alunos inscritos · {item.audience}</p><small className={item.chatEnabled ? 'chat-on' : 'chat-off'}>{item.chatEnabled ? '☵ Chat ao vivo habilitado' : '⊘ Chat desabilitado'}</small></div><div className="class-row-actions"><button onClick={onStartLive}>Transmitir</button><button aria-label={`Opções de ${item.title}`}>•••</button></div></article>)}</div>
         </section>
 
         <section className="dashboard-card" id="gravacoes">
@@ -115,6 +186,8 @@ export function CreatorDashboard({ onClose, onStartLive }: CreatorDashboardProps
           <button className="secondary" onClick={() => setPriceOpen(true)}>Configurar preços</button>
         </section>
       </main>
+
+      {scheduleOpen && <div className="modal-backdrop" role="presentation" onMouseDown={() => setScheduleOpen(false)}><section className="modal schedule-modal" role="dialog" aria-modal="true" aria-labelledby="schedule-title" onMouseDown={(event) => event.stopPropagation()}><button className="modal-close" onClick={() => setScheduleOpen(false)} aria-label="Fechar">×</button><p className="eyebrow">NOVA AULA</p><h2 id="schedule-title">Cadastrar aula ao vivo</h2><p className="schedule-help">Defina os dados da aula. O chat pode ficar pronto antes de abrir o estúdio.</p><form className="schedule-form" onSubmit={scheduleClass}><label>Título da aula<input required value={newClassTitle} onChange={(event) => setNewClassTitle(event.target.value)} placeholder="Ex.: Design de produto na prática" /></label><div className="schedule-form-grid"><label>Data<input required type="date" value={newClassDate} onChange={(event) => setNewClassDate(event.target.value)} /></label><label>Horário<input required type="time" value={newClassTime} onChange={(event) => setNewClassTime(event.target.value)} /></label></div><label>Público<select value={newClassAudience} onChange={(event) => setNewClassAudience(event.target.value)}><option>Adultos</option><option>Adolescentes e adultos</option><option>Crianças e adolescentes</option><option>Todas as idades</option></select></label><label className="schedule-chat-toggle"><input type="checkbox" checked={newClassChat} onChange={(event) => setNewClassChat(event.target.checked)} /><span><strong>Habilitar chat ao vivo</strong><small>O chat ficará disponível no estúdio e na sala da transmissão.</small></span></label><button className="primary full" type="submit">Salvar aula</button></form></section></div>}
 
       {priceOpen && <div className="modal-backdrop" role="presentation" onMouseDown={() => setPriceOpen(false)}><section className="modal price-modal" role="dialog" aria-modal="true" aria-labelledby="price-title" onMouseDown={(event) => event.stopPropagation()}><button className="modal-close" onClick={() => setPriceOpen(false)} aria-label="Fechar">×</button><p className="eyebrow">MONETIZAÇÃO</p><h2 id="price-title">Configurar preços</h2><label>Preço padrão da aula (R$)<input aria-label="Preço padrão da aula" value={classPrice} onChange={(event) => setClassPrice(event.target.value)} /></label><label>Assinatura mensal (R$)<input aria-label="Assinatura mensal" value={subscriptionPrice} onChange={(event) => setSubscriptionPrice(event.target.value)} /></label><button className="primary full" onClick={savePrices}>Salvar preços</button></section></div>}
     </div>
