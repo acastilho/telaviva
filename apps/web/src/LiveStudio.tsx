@@ -307,7 +307,10 @@ export function LiveStudio({ onClose }: { onClose: () => void }) {
   return <div className="studio-shell" role="dialog" aria-modal="true" aria-labelledby="studio-title">
     <header className="studio-header">
       <a className="brand institute-brand-link" href="#inicio" aria-label="Instituto Tela Viva"><BrandMark /></a>
-      <span className={`studio-status ${state}`}>{state === 'live' ? `● AO VIVO · ${viewerCount} assistindo` : state === 'paused' ? 'Ⅱ PAUSADA' : state === 'ended' ? 'FINALIZADA' : 'ESTÚDIO'}</span>
+      <div className="studio-status-wrap">
+        <span className={`studio-status ${state}`}>{state === 'live' ? '● AO VIVO' : state === 'paused' ? 'Ⅱ PAUSADA' : state === 'ended' ? 'FINALIZADA' : 'ESTÚDIO'}</span>
+        {state === 'live' && <small className="studio-viewer-count">{viewerCount} assistindo</small>}
+      </div>
       <button className="studio-close" onClick={() => { finish(); onClose() }} aria-label="Fechar estúdio">×</button>
     </header>
 
@@ -357,21 +360,21 @@ export function LiveStudio({ onClose }: { onClose: () => void }) {
         {needsScreen && <div className="source-card"><div><strong>Monitor, janela ou aba</strong><p>O navegador abrirá um seletor seguro para você escolher exatamente o que compartilhar.</p></div><button className="secondary" onClick={requestScreen}>{screen ? 'Trocar fonte' : 'Escolher fonte'}</button></div>}
 
         {(state === 'live' || state === 'paused') && <div className="broadcast-share-card">
-          <div><strong>Teste no celular</strong><p>Abra este endereço em outro dispositivo. O vídeo é enviado em tempo real diretamente entre os navegadores.</p></div>
+          <div><strong>Teste no celular</strong><p>Abra este endereço em outro dispositivo. A transmissão seguirá em tempo real enquanto esta live estiver ativa.</p></div>
           <code>{viewerUrl}</code>
           <button className="primary" onClick={copyViewerUrl}>Copiar link para assistir</button>
           {shareMessage && <small>{shareMessage}</small>}
-          {isLocalhost && <p className="broadcast-local-warning">Você está em localhost. Para abrir no celular, inicie a transmissão pela URL HTTPS de homologação ou acesse este servidor pelo IP da sua rede local.</p>}
+          {isLocalhost && <p className="broadcast-local-warning">Você está em localhost. Para abrir no celular, inicie a transmissão pela URL HTTPS de homologação ou acesse este servidor por um endereço seguro da sua rede.</p>}
         </div>}
 
-        <div className="permission-note"><strong>Você está no controle</strong><p>Câmera, microfone e tela só são acessados após sua autorização explícita. Ao finalizar, todas as trilhas locais e conexões ao vivo são encerradas.</p></div>
+        <div className="permission-note"><strong>Você está no controle</strong><p>O Tela Viva não acessa nem controla seu computador. Câmera, microfone e tela só são usados após sua autorização explícita. Ao finalizar, todas as fontes locais e conexões ao vivo são encerradas.</p></div>
         {error && <p className="studio-error" role="alert">{error}</p>}
 
         <div className="studio-actions">
           {(state === 'preparing' || state === 'ended') && <button className="secondary" onClick={preview}>Ver preview</button>}
           {state === 'preview' && <button className="primary" disabled={!ready} onClick={startBroadcast}>Iniciar transmissão</button>}
         </div>
-        <small className="broadcast-note">Homologação funcional: a transmissão usa conexão WebRTC direta entre o criador e os espectadores. Em redes que bloqueiam conexões P2P, será necessário um relay TURN na etapa de produção.</small>
+        <small className="broadcast-note">Homologação funcional: a mídia segue diretamente entre os dispositivos. Algumas redes restritivas podem exigir uma rota de retransmissão na etapa de produção.</small>
       </aside>
     </main>
   </div>
