@@ -1,9 +1,11 @@
-import { useMemo, useState } from 'react'
+import { FormEvent, useEffect, useMemo, useState } from 'react'
+import { AdminDashboard } from './AdminDashboard'
+import { authClient, type Audience, type AuthSession } from './auth'
+import { BrandMark } from './BrandMark'
+import { CreatorDashboard } from './CreatorDashboard'
+import { LiveRoom } from './LiveRoom'
 import { LiveStudio } from './LiveStudio'
 import { RecordingLibrary } from './RecordingLibrary'
-import { CreatorDashboard } from './CreatorDashboard'
-import { AdminDashboard } from './AdminDashboard'
-import { BrandMark } from './BrandMark'
 
 type Session = {
   id: number
@@ -20,35 +22,46 @@ type Session = {
   viewers?: string
   accent: string
   initials: string
+  objective: string
+  audiences: Audience[]
 }
 
+type AuthMode = 'login' | 'register' | 'recover'
+
 const sessions: Session[] = [
-  { id: 1, title: 'Identidade visual do zero', creator: 'Marina Luz', profession: 'Designer', category: 'Design', tool: 'Figma', language: 'Português', level: 'Intermediário', price: 0, status: 'Ao vivo', schedule: 'Agora', viewers: '1,2 mil', accent: 'coral', initials: 'ML' },
-  { id: 2, title: 'Cerâmica: torneando uma xícara', creator: 'João Barro', profession: 'Ceramista', category: 'Artesanato', tool: 'Torno', language: 'Português', level: 'Iniciante', price: 18, status: 'Ao vivo', schedule: 'Agora', viewers: '842', accent: 'clay', initials: 'JB' },
-  { id: 3, title: 'Luz natural em retratos', creator: 'Clara Reis', profession: 'Fotógrafa', category: 'Fotografia', tool: 'Câmera', language: 'Português', level: 'Todos os níveis', price: 0, status: 'Ao vivo', schedule: 'Agora', viewers: '618', accent: 'blue', initials: 'CR' },
-  { id: 4, title: 'Do rascunho ao personagem', creator: 'Bia Yamada', profession: 'Ilustradora', category: 'Ilustração', tool: 'Procreate', language: 'Português', level: 'Intermediário', price: 22, status: 'Ao vivo', schedule: 'Agora', viewers: '375', accent: 'violet', initials: 'BY' },
-  { id: 5, title: 'Pão de fermentação natural', creator: 'Caio Mendes', profession: 'Chef', category: 'Gastronomia', tool: 'Forno', language: 'Português', level: 'Iniciante', price: 0, status: 'Agendado', schedule: 'Hoje, 19:00', accent: 'gold', initials: 'CM' },
-  { id: 6, title: 'Mixando vocais em casa', creator: 'Nina Alves', profession: 'Produtora musical', category: 'Música', tool: 'Ableton', language: 'Português', level: 'Avançado', price: 35, status: 'Agendado', schedule: 'Amanhã, 18:30', accent: 'green', initials: 'NA' },
-  { id: 7, title: 'Portfólio que conta uma história', creator: 'Leo Costa', profession: 'Designer', category: 'Carreira', tool: 'Figma', language: 'Inglês', level: 'Todos os níveis', price: 15, status: 'Agendado', schedule: 'Qui, 20:00', accent: 'pink', initials: 'LC' },
+  { id: 1, title: 'Identidade visual do zero', creator: 'Marina Luz', profession: 'Designer', category: 'Criatividade', tool: 'Figma', language: 'Português', level: 'Intermediário', price: 0, status: 'Ao vivo', schedule: 'Agora', viewers: '1,2 mil', accent: 'coral', initials: 'ML', objective: 'Acompanhar a criação de uma identidade visual completa, incluindo escolhas, testes e correções.', audiences: ['TEEN', 'ADULT'] },
+  { id: 2, title: 'Cerâmica: torneando uma xícara', creator: 'João Barro', profession: 'Ceramista', category: 'Ofícios', tool: 'Torno', language: 'Português', level: 'Iniciante', price: 18, status: 'Ao vivo', schedule: 'Agora', viewers: '842', accent: 'clay', initials: 'JB', objective: 'Observar matéria, gesto e técnica enquanto uma peça nasce no torno.', audiences: ['TEEN', 'ADULT'] },
+  { id: 3, title: 'Luz natural em retratos', creator: 'Clara Reis', profession: 'Fotógrafa', category: 'Fotografia', tool: 'Câmera', language: 'Português', level: 'Todos os níveis', price: 0, status: 'Ao vivo', schedule: 'Agora', viewers: '618', accent: 'blue', initials: 'CR', objective: 'Entender luz, sombra e enquadramento observando decisões reais durante uma sessão.', audiences: ['TEEN', 'ADULT'] },
+  { id: 4, title: 'Bichos do jardim: observar e desenhar', creator: 'Bia Yamada', profession: 'Ilustradora', category: 'Natureza', tool: 'Papel e lápis', language: 'Português', level: 'Iniciante', price: 0, status: 'Ao vivo', schedule: 'Agora', viewers: '375', accent: 'violet', initials: 'BY', objective: 'Aprender a olhar formas, movimentos e detalhes de pequenos animais sem tirar nada do lugar.', audiences: ['CHILD', 'TEEN'] },
+  { id: 5, title: 'Pão de fermentação natural', creator: 'Caio Mendes', profession: 'Chef', category: 'Gastronomia', tool: 'Forno', language: 'Português', level: 'Iniciante', price: 0, status: 'Agendado', schedule: 'Hoje, 19:00', accent: 'gold', initials: 'CM', objective: 'Compreender tempo, fermentação e transformação dos ingredientes no processo real.', audiences: ['TEEN', 'ADULT'] },
+  { id: 6, title: 'Programando um sensor de umidade', creator: 'Nina Alves', profession: 'Tecnóloga', category: 'Tecnologia', tool: 'Microcontrolador', language: 'Português', level: 'Intermediário', price: 0, status: 'Agendado', schedule: 'Amanhã, 18:30', accent: 'green', initials: 'NA', objective: 'Usar tecnologia para observar o solo e entender quando uma planta precisa de água.', audiences: ['TEEN', 'ADULT'] },
+  { id: 7, title: 'Portfólio que conta uma história', creator: 'Leo Costa', profession: 'Designer', category: 'Carreira', tool: 'Figma', language: 'Português', level: 'Todos os níveis', price: 15, status: 'Agendado', schedule: 'Qui, 20:00', accent: 'pink', initials: 'LC', objective: 'Transformar processo real em narrativa profissional sem esconder dúvidas e decisões.', audiences: ['TEEN', 'ADULT'] },
+  { id: 8, title: 'Da semente ao broto', creator: 'Eva Campos', profession: 'Educadora ambiental', category: 'Natureza', tool: 'Terra e sementes', language: 'Português', level: 'Iniciante', price: 0, status: 'Agendado', schedule: 'Sáb, 10:00', accent: 'green', initials: 'EC', objective: 'Acompanhar germinação e aprender a cuidar de uma planta com curiosidade e responsabilidade.', audiences: ['CHILD', 'TEEN'] },
 ]
 
 const categories = [
-  ['✎', 'Design', '128 aulas'], ['◉', 'Fotografia', '86 aulas'], ['♫', 'Música', '72 aulas'],
-  ['◌', 'Artesanato', '64 aulas'], ['✦', 'Gastronomia', '53 aulas'], ['{ }', 'Tecnologia', '91 aulas'],
+  ['◌', 'Natureza', 'experiências'], ['✎', 'Criatividade', 'processos'], ['{ }', 'Tecnologia', 'projetos'],
+  ['◉', 'Fotografia', 'olhares'], ['✦', 'Gastronomia', 'saberes'], ['◇', 'Ofícios', 'fazeres'],
 ]
 
 const creators = [
   { name: 'Marina Luz', role: 'Designer de marcas', followers: '24 mil seguidores', initials: 'ML', accent: 'coral' },
   { name: 'Caio Mendes', role: 'Chef e padeiro', followers: '18 mil seguidores', initials: 'CM', accent: 'gold' },
-  { name: 'Nina Alves', role: 'Produtora musical', followers: '15 mil seguidores', initials: 'NA', accent: 'green' },
+  { name: 'Eva Campos', role: 'Educadora ambiental', followers: '16 mil seguidores', initials: 'EC', accent: 'green' },
   { name: 'Clara Reis', role: 'Fotógrafa', followers: '12 mil seguidores', initials: 'CR', accent: 'blue' },
 ]
 
 const newCreators = [
   { name: 'Ravi Nunes', role: 'Marceneiro', initials: 'RN', accent: 'clay' },
-  { name: 'Eva Campos', role: 'Artista têxtil', initials: 'EC', accent: 'violet' },
-  { name: 'Tomás Lee', role: 'Desenvolvedor criativo', initials: 'TL', accent: 'green' },
+  { name: 'Lia Prado', role: 'Bióloga de campo', initials: 'LP', accent: 'green' },
+  { name: 'Tomás Lee', role: 'Desenvolvedor criativo', initials: 'TL', accent: 'blue' },
 ]
+
+const audienceCopy: Record<Audience, { eyebrow: string; title: string; description: string }> = {
+  CHILD: { eyebrow: 'CRIANÇAS', title: 'Descobrir brincando', description: 'Experiências curadas, perguntas moderadas e linguagem simples. A conversa livre fica protegida.' },
+  TEEN: { eyebrow: 'ADOLESCENTES', title: 'Aprender fazendo', description: 'Mais autonomia para explorar projetos reais, com interação moderada e proteção adequada à idade.' },
+  ADULT: { eyebrow: 'ADULTOS', title: 'Acompanhar o processo', description: 'Acesso completo a aulas, profissionais, trilhas, comunidade e experiências de aprendizado vivo.' },
+}
 
 function Avatar({ initials, accent, large = false }: { initials: string; accent: string; large?: boolean }) {
   return <span className={`avatar ${accent} ${large ? 'avatar-large' : ''}`} aria-hidden="true">{initials}</span>
@@ -74,8 +87,8 @@ function SessionCard({ session, onWatch, compact = false }: { session: Session; 
     <article className="session-card">
       <button className={`session-art ${session.accent}`} onClick={onWatch} aria-label={`Assistir ${session.title}`}>
         <span className="art-mark">{session.initials}</span>
-        <span className="live-badge"><i /> AO VIVO</span>
-        <span className="viewer-count">◉ {session.viewers}</span>
+        {session.status === 'Ao vivo' ? <span className="live-badge"><i /> AO VIVO</span> : <span className="schedule-badge">{session.schedule}</span>}
+        {session.viewers && <span className="viewer-count">◉ {session.viewers}</span>}
         <span className="play">▶</span>
       </button>
       <div className="session-info">
@@ -98,16 +111,55 @@ export function App() {
   const [payment, setPayment] = useState('Todos')
   const [timing, setTiming] = useState('Todos')
   const [maxPrice, setMaxPrice] = useState(50)
+  const [audience, setAudience] = useState<Audience>(() => {
+    const saved = typeof window !== 'undefined' ? window.localStorage.getItem('tv_audience') : null
+    return saved === 'CHILD' || saved === 'TEEN' || saved === 'ADULT' ? saved : 'ADULT'
+  })
+  const [authSession, setAuthSession] = useState<AuthSession | null>(null)
+  const [authReady, setAuthReady] = useState(false)
   const [loginOpen, setLoginOpen] = useState(false)
+  const [authMode, setAuthMode] = useState<AuthMode>('login')
+  const [authEmail, setAuthEmail] = useState('')
+  const [authPassword, setAuthPassword] = useState('')
+  const [guardianEmail, setGuardianEmail] = useState('')
+  const [authAudience, setAuthAudience] = useState<Audience>(audience)
+  const [authError, setAuthError] = useState('')
+  const [authMessage, setAuthMessage] = useState('')
+  const [authLoading, setAuthLoading] = useState(false)
+  const [pendingSessionId, setPendingSessionId] = useState<number | null>(null)
+  const [activeLive, setActiveLive] = useState<Session | null>(null)
   const [studioOpen, setStudioOpen] = useState(false)
   const [libraryOpen, setLibraryOpen] = useState(false)
   const [dashboardOpen, setDashboardOpen] = useState(false)
   const [adminOpen, setAdminOpen] = useState(false)
+  const [toast, setToast] = useState('')
+
+  useEffect(() => {
+    let active = true
+    authClient.restore().then((session) => {
+      if (!active) return
+      setAuthSession(session)
+      if (session) setAudience(session.user.audience)
+      setAuthReady(true)
+    })
+    return () => { active = false }
+  }, [])
+
+  useEffect(() => {
+    window.localStorage.setItem('tv_audience', audience)
+    setAuthAudience(audience)
+  }, [audience])
+
+  useEffect(() => {
+    if (!toast) return
+    const timer = window.setTimeout(() => setToast(''), 3200)
+    return () => window.clearTimeout(timer)
+  }, [toast])
 
   const filtered = useMemo(() => sessions.filter((session) => {
     const term = query.toLocaleLowerCase('pt-BR')
     const matchesQuery = [session.title, session.creator, session.profession, session.category, session.tool].some((value) => value.toLocaleLowerCase('pt-BR').includes(term))
-    return matchesQuery &&
+    return session.audiences.includes(audience) && matchesQuery &&
       (category === 'Todas' || session.category === category) &&
       (profession === 'Todas' || session.profession === profession) &&
       (tool === 'Todas' || session.tool === tool) &&
@@ -115,17 +167,118 @@ export function App() {
       (level === 'Todos' || session.level === level) &&
       (payment === 'Todos' || (payment === 'Gratuito' ? session.price === 0 : session.price > 0)) &&
       (timing === 'Todos' || session.status === timing) && session.price <= maxPrice
-  }), [category, language, level, maxPrice, payment, profession, query, timing, tool])
+  }), [audience, category, language, level, maxPrice, payment, profession, query, timing, tool])
 
   const liveSessions = filtered.filter((session) => session.status === 'Ao vivo')
   const upcoming = filtered.filter((session) => session.status === 'Agendado')
   const activeFilterCount = [category !== 'Todas', profession !== 'Todas', tool !== 'Todas', language !== 'Todos', level !== 'Todos', payment !== 'Todos', timing !== 'Todos', maxPrice < 50].filter(Boolean).length
+  const liveCount = liveSessions.length
 
   const clearFilters = () => {
     setCategory('Todas'); setProfession('Todas'); setTool('Todas'); setLanguage('Todos')
     setLevel('Todos'); setPayment('Todos'); setTiming('Todos'); setMaxPrice(50)
   }
 
+  const openAuth = (mode: AuthMode = 'login', pendingId: number | null = null) => {
+    setAuthMode(mode)
+    setPendingSessionId(pendingId)
+    setAuthError('')
+    setAuthMessage('')
+    setAuthPassword('')
+    setLoginOpen(true)
+  }
+
+  const watchSession = (session: Session) => {
+    if (!authSession) {
+      openAuth('login', session.id)
+      return
+    }
+    if (!session.audiences.includes(authSession.user.audience)) {
+      setToast('Esta aula pertence a outra faixa de experiência.')
+      return
+    }
+    if (session.status === 'Agendado') {
+      setToast('Lembrete salvo. Avisaremos quando a aula começar.')
+      return
+    }
+    setActiveLive(session)
+  }
+
+  const submitAuth = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setAuthError('')
+    setAuthMessage('')
+    setAuthLoading(true)
+    try {
+      if (authMode === 'recover') {
+        await authClient.recover(authEmail)
+        setAuthMessage('Se a conta existir, as instruções de recuperação serão enviadas.')
+        return
+      }
+      const session = authMode === 'register'
+        ? await authClient.register(authEmail, authPassword, authAudience, guardianEmail)
+        : await authClient.login(authEmail, authPassword)
+      setAuthSession(session)
+      setAudience(session.user.audience)
+      setLoginOpen(false)
+      setAuthEmail('')
+      setAuthPassword('')
+      setGuardianEmail('')
+      if (pendingSessionId) {
+        const pending = sessions.find((item) => item.id === pendingSessionId)
+        if (pending?.status === 'Ao vivo' && pending.audiences.includes(session.user.audience)) setActiveLive(pending)
+      }
+      setPendingSessionId(null)
+      setToast('Sessão iniciada com segurança.')
+    } catch (error) {
+      setAuthError(error instanceof Error ? translateAuthError(error.message) : 'Não foi possível entrar.')
+    } finally {
+      setAuthLoading(false)
+    }
+  }
+
+  const logout = async () => {
+    await authClient.logout()
+    setAuthSession(null)
+    setStudioOpen(false)
+    setDashboardOpen(false)
+    setAdminOpen(false)
+    setToast('Você saiu da sua conta.')
+  }
+
+  const openLibrary = () => {
+    if (!authSession) return openAuth('login')
+    setLibraryOpen(true)
+  }
+
+  const openCreator = () => {
+    if (!authSession && authClient.usesRemoteApi) return openAuth('login')
+    if (authSession && !['CREATOR', 'ADMIN'].includes(authSession.user.role) && authClient.usesRemoteApi) {
+      setToast('Seu perfil ainda não possui acesso ao painel do criador.')
+      return
+    }
+    setDashboardOpen(true)
+  }
+
+  const openAdmin = () => {
+    if (!authSession && authClient.usesRemoteApi) return openAuth('login')
+    if (authSession?.user.role !== 'ADMIN' && authClient.usesRemoteApi) {
+      setToast('Área restrita a administradores.')
+      return
+    }
+    setAdminOpen(true)
+  }
+
+  const openStudio = () => {
+    if (!authSession && authClient.usesRemoteApi) return openAuth('login')
+    if (authSession && !['CREATOR', 'ADMIN'].includes(authSession.user.role) && authClient.usesRemoteApi) {
+      setToast('Somente criadores autorizados podem iniciar transmissões.')
+      return
+    }
+    setStudioOpen(true)
+  }
+
+  if (activeLive && authSession) return <LiveRoom session={activeLive} audience={authSession.user.audience} user={authSession.user} onClose={() => setActiveLive(null)} />
   if (studioOpen) return <LiveStudio onClose={() => setStudioOpen(false)} />
   if (libraryOpen) return <RecordingLibrary onClose={() => setLibraryOpen(false)} />
   if (dashboardOpen) return <CreatorDashboard onClose={() => setDashboardOpen(false)} onStartLive={() => { setDashboardOpen(false); setStudioOpen(true) }} />
@@ -133,26 +286,41 @@ export function App() {
 
   return (
     <div className="app-shell">
-      <header>
+      <header className="main-header">
         <a className="brand institute-brand-link" href="#inicio" aria-label="Instituto Tela Viva, início"><BrandMark /></a>
-        <nav aria-label="Navegação principal"><a className="active" href="#inicio">Descobrir</a><a href="#categorias">Categorias</a><a href="#proximas">Agenda</a><button onClick={() => setLibraryOpen(true)}>Minha biblioteca</button></nav>
-        <div className="header-actions"><button className="link-button" onClick={() => setLoginOpen(true)}>Entrar</button><button className="link-button" onClick={() => setDashboardOpen(true)}>Painel do criador</button><button className="link-button admin-link" onClick={() => setAdminOpen(true)}>Administração</button><button className="link-button create-live" onClick={() => setStudioOpen(true)}>Criar live</button><button className="primary small" onClick={() => setLoginOpen(true)}>Criar conta</button></div>
+        <nav aria-label="Navegação principal"><a className="active" href="#inicio">Descobrir</a><a href="#experiencias">Experiências</a><a href="#proximas">Agenda</a><button onClick={openLibrary}>Minha biblioteca</button></nav>
+        <div className="header-actions">
+          {authReady && authSession ? <>
+            <button className="account-chip" onClick={() => setToast(`${authSession.user.email} · ${audienceLabel(authSession.user.audience)}`)}><span>{authSession.user.email.slice(0, 1).toUpperCase()}</span><b>{authSession.user.email.split('@')[0]}</b></button>
+            <button className="link-button" onClick={logout}>Sair</button>
+          </> : <>
+            <button className="link-button" onClick={() => openAuth('login')}>Entrar</button>
+            <button className="primary small" onClick={() => openAuth('register')}>Criar conta</button>
+          </>}
+        </div>
       </header>
 
       <main id="inicio">
         <section className="welcome">
-          <div><p className="eyebrow">BEM-VINDO AO INSTITUTO TELA VIVA</p><h1>O que você quer<br /><em>aprender hoje?</em></h1><p className="mission">Somos o instituto que vai te conectar à natureza, <em>com IA.</em></p></div>
-          <div className="brand-stage"><BrandMark symbolOnly className="hero-mark" /><p className="live-now"><strong>● 4</strong> ao vivo agora</p></div>
+          <div className="welcome-copy"><p className="eyebrow">INSTITUTO DE APRENDIZADO VIVO</p><h1>Onde o conhecimento<br /><em>acontece vivo.</em></h1><p className="mission">Aprenda acompanhando pessoas, natureza e tecnologia em processo. <em>Porque tecnologia também é natureza.</em></p><div className="welcome-actions"><a className="primary hero-button" href="#experiencias">Explorar experiências</a><button className="secondary" onClick={() => openAuth(authSession ? 'login' : 'register')}>{authSession ? 'Minha conta' : 'Começar gratuitamente'}</button></div></div>
+          <div className="brand-stage"><BrandMark symbolOnly className="hero-mark" /><p className="live-now"><strong>● {liveCount}</strong> ao vivo para você</p></div>
+        </section>
+
+        <section className="audience-section" aria-labelledby="audience-title">
+          <div className="section-heading audience-heading"><div><p>UM INSTITUTO PARA CADA FASE DA VIDA</p><h2 id="audience-title">Escolha sua experiência</h2></div><span>Você pode mudar quando quiser.</span></div>
+          <div className="audience-grid">
+            {(Object.keys(audienceCopy) as Audience[]).map((item) => <button key={item} className={audience === item ? 'selected' : ''} onClick={() => setAudience(item)} aria-pressed={audience === item}><span className="audience-symbol">{item === 'CHILD' ? '✦' : item === 'TEEN' ? '↗' : '∞'}</span><small>{audienceCopy[item].eyebrow}</small><strong>{audienceCopy[item].title}</strong><p>{audienceCopy[item].description}</p><i>{audience === item ? 'Selecionado' : 'Escolher'}</i></button>)}
+          </div>
         </section>
 
         <section className="discovery" aria-label="Pesquisa e filtros">
           <label className="search"><span aria-hidden="true">⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Busque por tema, profissional ou ferramenta..." /></label>
           <button className={`filter-trigger ${filtersOpen ? 'selected' : ''}`} onClick={() => setFiltersOpen(!filtersOpen)} aria-expanded={filtersOpen} aria-controls="filters"><span>☷</span> Filtros {activeFilterCount > 0 && <b>{activeFilterCount}</b>}</button>
           {filtersOpen && <div className="filters" id="filters">
-            <Filter label="Profissão" value={profession} onChange={setProfession} options={['Todas', 'Designer', 'Ceramista', 'Fotógrafa', 'Ilustradora', 'Chef', 'Produtora musical']} />
-            <Filter label="Categoria" value={category} onChange={setCategory} options={['Todas', 'Design', 'Artesanato', 'Fotografia', 'Ilustração', 'Gastronomia', 'Música', 'Carreira']} />
-            <Filter label="Ferramenta" value={tool} onChange={setTool} options={['Todas', 'Figma', 'Torno', 'Câmera', 'Procreate', 'Forno', 'Ableton']} />
-            <Filter label="Idioma" value={language} onChange={setLanguage} options={['Todos', 'Português', 'Inglês']} />
+            <Filter label="Profissão" value={profession} onChange={setProfession} options={['Todas', 'Designer', 'Ceramista', 'Fotógrafa', 'Ilustradora', 'Chef', 'Tecnóloga', 'Educadora ambiental']} />
+            <Filter label="Categoria" value={category} onChange={setCategory} options={['Todas', 'Natureza', 'Criatividade', 'Tecnologia', 'Fotografia', 'Gastronomia', 'Ofícios', 'Carreira']} />
+            <Filter label="Ferramenta" value={tool} onChange={setTool} options={['Todas', 'Figma', 'Torno', 'Câmera', 'Papel e lápis', 'Forno', 'Microcontrolador', 'Terra e sementes']} />
+            <Filter label="Idioma" value={language} onChange={setLanguage} options={['Todos', 'Português']} />
             <Filter label="Nível" value={level} onChange={setLevel} options={['Todos', 'Iniciante', 'Intermediário', 'Avançado', 'Todos os níveis']} />
             <Filter label="Preço" value={payment} onChange={setPayment} options={['Todos', 'Gratuito', 'Pago']} />
             <Filter label="Quando" value={timing} onChange={setTiming} options={['Todos', 'Ao vivo', 'Agendado']} />
@@ -161,20 +329,24 @@ export function App() {
           </div>}
         </section>
 
-        <section className="content-section">
+        <section className="content-section" id="experiencias">
           <SectionHeading eyebrow="ACONTECENDO AGORA" title="Profissionais ao vivo" action="Ver todos" />
-          {liveSessions.length ? <div className="session-grid">{liveSessions.map((session) => <SessionCard key={session.id} session={session} onWatch={() => setLoginOpen(true)} />)}</div> : <EmptyState />}
+          {liveSessions.length ? <div className="session-grid">{liveSessions.map((session) => <SessionCard key={session.id} session={session} onWatch={() => watchSession(session)} />)}</div> : <EmptyState />}
+        </section>
+
+        <section className="principle-section" aria-label="Princípio do Instituto Tela Viva">
+          <p className="eyebrow">NOSSA TESE</p><blockquote>“O ser humano cria a partir do que observa. Tudo o que observa faz parte da natureza. A tecnologia não está fora dela: é uma continuação da capacidade humana de perceber, combinar e transformar.”</blockquote><span>O Instituto Tela Viva transforma essa ideia em aprendizado por presença, processo e descoberta.</span>
         </section>
 
         <section className="category-section" id="categorias">
-          <SectionHeading eyebrow="EXPLORE SEU INTERESSE" title="Categorias" />
-          <div className="category-grid">{categories.map(([icon, name, count]) => <button key={name} onClick={() => { setCategory(name); setFiltersOpen(true); document.getElementById('inicio')?.scrollIntoView() }}><span>{icon}</span><strong>{name}</strong><small>{count}</small><i>↗</i></button>)}</div>
+          <SectionHeading eyebrow="CAMINHOS DE DESCOBERTA" title="Categorias" />
+          <div className="category-grid">{categories.map(([icon, name, count]) => <button key={name} onClick={() => { setCategory(name); setFiltersOpen(true); document.getElementById('experiencias')?.scrollIntoView() }}><span>{icon}</span><strong>{name}</strong><small>{count}</small><i>↗</i></button>)}</div>
         </section>
 
         <section className="split-sections" id="proximas">
-          <div><SectionHeading eyebrow="PROGRAME-SE" title="Próximas aulas" />{upcoming.length ? <div className="upcoming-list">{upcoming.map((session) => <SessionCard key={session.id} session={session} compact onWatch={() => setLoginOpen(true)} />)}</div> : <EmptyState />}</div>
+          <div><SectionHeading eyebrow="PROGRAME-SE" title="Próximas aulas" />{upcoming.length ? <div className="upcoming-list">{upcoming.map((session) => <SessionCard key={session.id} session={session} compact onWatch={() => watchSession(session)} />)}</div> : <EmptyState />}</div>
           <div><SectionHeading eyebrow="EM DESTAQUE" title="Criadores populares" />
-            <div className="creator-list">{creators.map((creator, index) => <article key={creator.name}><span className="rank">0{index + 1}</span><Avatar {...creator} large /><div><h3>{creator.name} <span className="verified">✓</span></h3><p>{creator.role}</p><small>{creator.followers}</small></div><button aria-label={`Seguir ${creator.name}`}>+</button></article>)}</div>
+            <div className="creator-list">{creators.map((creator, index) => <article key={creator.name}><span className="rank">0{index + 1}</span><Avatar {...creator} large /><div><h3>{creator.name} <span className="verified">✓</span></h3><p>{creator.role}</p><small>{creator.followers}</small></div><button aria-label={`Seguir ${creator.name}`} onClick={() => authSession ? setToast(`Agora você segue ${creator.name}.`) : openAuth('login')}>+</button></article>)}</div>
           </div>
         </section>
 
@@ -182,11 +354,32 @@ export function App() {
           <SectionHeading eyebrow="NOVOS TALENTOS" title="Acabaram de chegar" action="Conhecer todos" />
           <div className="new-grid">{newCreators.map((creator) => <article key={creator.name}><Avatar {...creator} large /><div><h3>{creator.name}</h3><p>{creator.role}</p></div><span>Novo</span></article>)}</div>
         </section>
+
+        <section className="workspace-section" aria-labelledby="workspace-title">
+          <div><p className="eyebrow">FAZER O CONHECIMENTO ACONTECER</p><h2 id="workspace-title">Ferramentas para quem aprende e para quem ensina</h2><p>Biblioteca, estúdio, acompanhamento e operação ficam atrás de sessão autenticada e permissões adequadas. Em homologação, os painéis profissionais podem ser visualizados como demonstração quando a API externa não estiver conectada.</p></div>
+          <div className="workspace-actions"><button onClick={openLibrary}>Minha biblioteca</button><button onClick={openCreator}>Painel do criador</button><button onClick={openStudio}>Criar live</button><button onClick={openAdmin}>Administração</button></div>
+        </section>
       </main>
 
-      <footer><a className="brand institute-brand-link" href="#inicio"><BrandMark /></a><p>Natureza, conhecimento humano e inteligência artificial.</p><span>© 2026 Instituto Tela Viva</span></footer>
+      <footer><a className="brand institute-brand-link" href="#inicio"><BrandMark /></a><p>Onde o conhecimento acontece vivo.</p><nav aria-label="Links institucionais"><a href="#experiencias">Experiências</a><a href="#categorias">Categorias</a><button onClick={() => setToast('Política de privacidade em validação para o beta.')}>Privacidade</button></nav><span>© 2026 Instituto Tela Viva</span></footer>
 
-      {loginOpen && <div className="modal-backdrop" role="presentation" onMouseDown={() => setLoginOpen(false)}><section className="modal" role="dialog" aria-modal="true" aria-labelledby="login-title" onMouseDown={(event) => event.stopPropagation()}><button className="modal-close" onClick={() => setLoginOpen(false)} aria-label="Fechar">×</button><BrandMark symbolOnly className="modal-brand-mark" /><p className="eyebrow">QUASE LÁ</p><h2 id="login-title">Entre para assistir</h2><p>Crie sua conta gratuita ou entre para acompanhar transmissões, conversar com profissionais e salvar suas aulas.</p><button className="primary full">Criar conta grátis</button><button className="secondary full">Já tenho uma conta</button><small>Assistir transmissões requer login.</small></section></div>}
+      {loginOpen && <div className="modal-backdrop" role="presentation" onMouseDown={() => setLoginOpen(false)}><section className="modal auth-modal" role="dialog" aria-modal="true" aria-labelledby="login-title" onMouseDown={(event) => event.stopPropagation()}><button className="modal-close" onClick={() => setLoginOpen(false)} aria-label="Fechar">×</button><BrandMark symbolOnly className="modal-brand-mark" />
+        <div className="auth-tabs" role="tablist" aria-label="Acesso à conta"><button role="tab" aria-selected={authMode === 'login'} onClick={() => { setAuthMode('login'); setAuthError(''); setAuthMessage('') }}>Entrar</button><button role="tab" aria-selected={authMode === 'register'} onClick={() => { setAuthMode('register'); setAuthError(''); setAuthMessage('') }}>Criar conta</button></div>
+        <p className="eyebrow">ACESSO PROTEGIDO</p><h2 id="login-title">{authMode === 'login' ? 'Entre para assistir' : authMode === 'register' ? 'Comece seu aprendizado' : 'Recupere seu acesso'}</h2><p>{authMode === 'register' ? 'Sua experiência é adequada à faixa escolhida e pode ser alterada depois.' : authMode === 'recover' ? 'Informe seu e-mail. A resposta não confirma se uma conta existe.' : 'Entre para acompanhar transmissões, participar com segurança e salvar suas aulas.'}</p>
+        <form className="auth-form" onSubmit={submitAuth}>
+          <label><span>E-mail</span><input type="email" autoComplete="email" required value={authEmail} onChange={(event) => setAuthEmail(event.target.value)} placeholder="voce@exemplo.com" /></label>
+          {authMode !== 'recover' && <label><span>Senha</span><input type="password" autoComplete={authMode === 'register' ? 'new-password' : 'current-password'} required minLength={authMode === 'register' ? 12 : 1} maxLength={128} value={authPassword} onChange={(event) => setAuthPassword(event.target.value)} placeholder={authMode === 'register' ? 'Mínimo de 12 caracteres' : 'Sua senha'} /></label>}
+          {authMode === 'register' && <><fieldset className="auth-audience"><legend>Área de aprendizado</legend><label><input type="radio" name="auth-audience" checked={authAudience === 'CHILD'} onChange={() => setAuthAudience('CHILD')} /> Criança</label><label><input type="radio" name="auth-audience" checked={authAudience === 'TEEN'} onChange={() => setAuthAudience('TEEN')} /> Adolescente</label><label><input type="radio" name="auth-audience" checked={authAudience === 'ADULT'} onChange={() => setAuthAudience('ADULT')} /> Adulto</label></fieldset>{authAudience === 'CHILD' && <label><span>E-mail do responsável</span><input type="email" required value={guardianEmail} onChange={(event) => setGuardianEmail(event.target.value)} placeholder="responsavel@exemplo.com" /></label>}</>}
+          {authError && <p className="auth-error" role="alert">{authError}</p>}
+          {authMessage && <p className="auth-success" role="status">{authMessage}</p>}
+          <button className="primary full" disabled={authLoading}>{authLoading ? 'Aguarde…' : authMode === 'login' ? 'Entrar na minha conta' : authMode === 'register' ? 'Criar minha conta' : 'Enviar instruções'}</button>
+        </form>
+        {authMode === 'login' && <button className="text-action" onClick={() => { setAuthMode('recover'); setAuthError(''); setAuthMessage('') }}>Esqueci minha senha</button>}
+        {authMode === 'recover' && <button className="text-action" onClick={() => setAuthMode('login')}>← Voltar para entrar</button>}
+        <small>Senhas nunca são exibidas. Sessões de homologação ficam isoladas no navegador quando o serviço de autenticação não está conectado.</small>
+      </section></div>}
+
+      {toast && <div className="toast" role="status">{toast}</div>}
     </div>
   )
 }
@@ -196,9 +389,23 @@ function Filter({ label, value, options, onChange }: { label: string; value: str
 }
 
 function SectionHeading({ eyebrow, title, action }: { eyebrow: string; title: string; action?: string }) {
-  return <div className="section-heading"><div><p>{eyebrow}</p><h2>{title}</h2></div>{action && <a href="#inicio">{action} <span>→</span></a>}</div>
+  return <div className="section-heading"><div><p>{eyebrow}</p><h2>{title}</h2></div>{action && <a href="#experiencias">{action} <span>→</span></a>}</div>
 }
 
 function EmptyState() {
-  return <div className="empty-state"><strong>Nenhuma aula encontrada</strong><p>Tente ajustar a busca ou remover alguns filtros.</p></div>
+  return <div className="empty-state"><strong>Nenhuma aula encontrada</strong><p>Tente ajustar a busca, a faixa de experiência ou remover alguns filtros.</p></div>
+}
+
+function audienceLabel(audience: Audience): string {
+  if (audience === 'CHILD') return 'Crianças'
+  if (audience === 'TEEN') return 'Adolescentes'
+  return 'Adultos'
+}
+
+function translateAuthError(message: string): string {
+  const normalized = message.toLowerCase()
+  if (normalized.includes('invalid credentials')) return 'E-mail ou senha inválidos.'
+  if (normalized.includes('already registered')) return 'Este e-mail já possui uma conta.'
+  if (normalized.includes('too many requests')) return 'Muitas tentativas. Aguarde um pouco e tente novamente.'
+  return message
 }
