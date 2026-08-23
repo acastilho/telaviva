@@ -5,10 +5,16 @@ from fastapi.testclient import TestClient
 from pytest import LogCaptureFixture
 
 from app.config import Settings
+from app.identity.routes import get_identity_repository
 from app.main import app
 from app.security import RateLimiter
 
 client = TestClient(app)
+
+
+class MissingIdentityRepository:
+    async def get_user_by_email(self, email: str) -> None:
+        return None
 
 
 def test_wildcard_cors_is_rejected_with_credentials() -> None:
@@ -81,12 +87,16 @@ def test_rate_limiter_enforces_window_and_recovers() -> None:
 
 
 def test_structured_logs_exclude_credentials(caplog: LogCaptureFixture) -> None:
-    with caplog.at_level(logging.INFO, logger="telaviva.security"):
-        response = client.post(
-            "/auth/login",
-            json={"email": "nobody@example.com", "password": "do-not-log-this"},
-            headers={"Authorization": "Bearer do-not-log-token"},
-        )
+    app.dependency_overrides[get_identity_repository] = MissingIdentityRepository
+    try:
+        with caplog.at_level(logging.INFO, logger="telaviva.security"):
+            response = client.post(
+                "/auth/login",
+                json={"email": "nobody@example.com", "password": "do-not-log-this"},
+                headers={"Authorization": "Bearer do-not-log-token"},
+            )
+    finally:
+        app.dependency_overrides.pop(get_identity_repository, None)
 
     assert response.status_code == 401
     text = caplog.text
