@@ -1,7 +1,9 @@
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
+import pytest
 from fastapi.testclient import TestClient
+from starlette.websockets import WebSocketDisconnect
 
 from app.commerce.models import AccessDecision
 from app.commerce.routes import get_commerce_repository
@@ -190,11 +192,9 @@ def test_websocket_honors_disabled_channels_and_bans() -> None:
     repository.restrictions[viewer.id] = ModerationAction.BAN
     with client.websocket_connect(f"/streams/{stream_id}/live") as socket:
         socket.send_json({"type": "authenticate", "token": token})
-        try:
+        with pytest.raises(WebSocketDisconnect) as closed:
             socket.receive_json()
-            raise AssertionError("banned viewer should be disconnected")
-        except Exception as error:
-            assert "1008" in str(error)
+        assert closed.value.code == 1008
 
 
 def test_websocket_rejects_user_without_stream_entitlement() -> None:
@@ -208,8 +208,6 @@ def test_websocket_rejects_user_without_stream_entitlement() -> None:
     token, _ = create_access_token(viewer.id, viewer.role.value, get_settings())
     with client.websocket_connect(f"/streams/{stream_id}/live") as socket:
         socket.send_json({"type": "authenticate", "token": token})
-        try:
+        with pytest.raises(WebSocketDisconnect) as closed:
             socket.receive_json()
-            raise AssertionError("viewer without entitlement should be disconnected")
-        except Exception as error:
-            assert "1008" in str(error)
+        assert closed.value.code == 1008
