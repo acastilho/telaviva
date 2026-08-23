@@ -1,15 +1,19 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { App } from './App'
+import { LiveViewer } from './LiveViewer'
 import './styles.css'
 import './brand.css'
 import './official-brand.css'
 import './product.css'
 import './system.css'
+import './live-broadcast.css'
+
+const liveRoomId = new URLSearchParams(window.location.search).get('live')
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    {liveRoomId ? <LiveViewer roomId={liveRoomId} /> : <App />}
   </StrictMode>,
 )
 
