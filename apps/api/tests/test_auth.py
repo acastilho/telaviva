@@ -31,9 +31,9 @@ class MemoryRepository:
             email,
             password_hash,
             role,
+            datetime.now(UTC),
             audience,
             guardian_email,
-            datetime.now(UTC),
         )
         self.users[user.id] = user
         return user
@@ -79,9 +79,9 @@ class MemoryRepository:
             user.email,
             password_hash,
             user.role,
+            user.created_at,
             user.audience,
             user.guardian_email,
-            user.created_at,
         )
         self.recovery_tokens[token_hash_value] = (*value[:2], True)
         for token_id, refresh in list(self.refresh_tokens.items()):
@@ -227,9 +227,9 @@ def test_rbac_denies_viewer_and_allows_admin() -> None:
         "admin@example.com",
         hash_password("admin-password-123"),
         Role.ADMIN,
+        datetime.now(UTC),
         Audience.ADULT,
         None,
-        datetime.now(UTC),
     )
     repository.users[admin.id] = admin
     admin_login = client.post(
