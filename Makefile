@@ -1,4 +1,7 @@
-.PHONY: test lint typecheck
+.PHONY: local test lint typecheck
+
+local:
+	bash scripts/devpilot-local.sh
 
 test:
 	cd apps/api && pytest
