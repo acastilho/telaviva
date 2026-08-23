@@ -22,6 +22,6 @@ class User:
     email: str
     password_hash: str
     role: Role
-    audience: Audience
-    guardian_email: str | None
     created_at: datetime
+    audience: Audience = Audience.ADULT
+    guardian_email: str | None = None
