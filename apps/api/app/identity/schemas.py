@@ -1,11 +1,21 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, model_validator
 
-from app.identity.models import Role
+from app.identity.models import Audience, Role
 
 
 class RegisterRequest(BaseModel):
     email: EmailStr
     password: str = Field(min_length=12, max_length=128)
+    audience: Audience = Audience.ADULT
+    guardian_email: EmailStr | None = None
+
+    @model_validator(mode="after")
+    def validate_guardian(self) -> "RegisterRequest":
+        if self.audience is Audience.CHILD and self.guardian_email is None:
+            raise ValueError("guardian_email is required for child accounts")
+        if self.guardian_email is not None and self.guardian_email == self.email:
+            raise ValueError("guardian_email must be different from the account email")
+        return self
 
 
 class LoginRequest(BaseModel):
@@ -34,6 +44,7 @@ class UserResponse(BaseModel):
     id: str
     email: EmailStr
     role: Role
+    audience: Audience
 
 
 class TokenResponse(BaseModel):
