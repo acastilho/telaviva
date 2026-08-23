@@ -39,6 +39,9 @@ jobs:
 
       - name: Validar frontend
         working-directory: apps/web
+        env:
+          VITE_LIVE_SOCKET_URL: https://telaviva-api-homolog.onrender.com
+          VITE_HOMOLOG_SOCKET_PATH: /homolog/live
         run: |
           npm run typecheck
           npm run test -- --run
