@@ -1,7 +1,7 @@
 import asyncio
 from collections import defaultdict, deque
 from datetime import UTC, datetime, timedelta
-from uuid import UUID, uuid4
+from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 
@@ -60,16 +60,30 @@ hub = HomologationHub()
 limiter = HomologationRateLimiter()
 
 
+async def _resolve_user_id(
+    token: str,
+    configuration: Settings,
+    identities: IdentityRepository,
+) -> UUID:
+    if configuration.app_env.lower() == "homologation":
+        if len(token) < 8:
+            raise InvalidTokenError
+        return uuid5(NAMESPACE_URL, f"instituto-tela-viva:homolog:{token}")
+
+    payload = decode_token(token, "access", configuration)
+    user = await identities.get_user_by_id(UUID(payload["sub"]))
+    if user is None or user.role.value != payload.get("role"):
+        raise InvalidTokenError
+    return user.id
+
+
 @router.websocket("/live")
 async def homologation_live(
     socket: WebSocket,
     identities: IdentityRepository = Depends(get_identity_repository),
     configuration: Settings = Depends(get_settings),
 ) -> None:
-    """Ephemeral authenticated room used only to validate live data in homologation.
-
-    Events are intentionally kept in memory and are never recorded or persisted.
-    """
+    """Ephemeral room used only to validate live data without recording or persistence."""
     await socket.accept()
     if configuration.app_env.lower() not in {"development", "test", "homologation"}:
         await socket.close(code=1008, reason="Homologation room disabled")
@@ -80,15 +94,12 @@ async def homologation_live(
         token = authentication.get("token") if authentication.get("type") == "authenticate" else None
         if not isinstance(token, str):
             raise InvalidTokenError
-        payload = decode_token(token, "access", configuration)
-        user = await identities.get_user_by_id(UUID(payload["sub"]))
-        if user is None or user.role.value != payload.get("role"):
-            raise InvalidTokenError
+        user_id = await _resolve_user_id(token, configuration, identities)
     except (InvalidTokenError, TimeoutError, ValueError, KeyError):
         await socket.close(code=1008, reason="Authentication failed")
         return
 
-    viewers = await hub.add(socket, user.id)
+    viewers = await hub.add(socket, user_id)
     await socket.send_json({
         "type": "ready",
         "settings": {
@@ -112,14 +123,14 @@ async def homologation_live(
             if not isinstance(content, str) or not 1 <= len(content.strip()) <= maximum:
                 await socket.send_json({"type": "error", "code": "invalid_content"})
                 continue
-            if not limiter.allow(user.id):
+            if not limiter.allow(user_id):
                 await socket.send_json({"type": "error", "code": "rate_limited"})
                 continue
             await hub.broadcast({
                 "type": "event",
                 "id": str(uuid4()),
                 "stream_id": "homologation",
-                "user_id": str(user.id),
+                "user_id": str(user_id),
                 "kind": kind,
                 "content": content.strip(),
                 "created_at": datetime.now(UTC).isoformat(),
