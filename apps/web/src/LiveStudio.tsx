@@ -1,5 +1,14 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { BrandMark } from './BrandMark'
+import {
+  createLiveRoom,
+  createRoomId,
+  createViewerUrl,
+  publishStream,
+  type BroadcastMediaKind,
+  type BroadcastRoom,
+  unpublishStream,
+} from './peerBroadcast'
 
 type Layout = 'screen' | 'screen-camera' | 'camera'
 type LiveState = 'preparing' | 'preview' | 'live' | 'paused' | 'ended'
@@ -9,10 +18,35 @@ const stopStream = (stream: MediaStream | null) => stream?.getTracks().forEach((
 
 function Video({ stream, muted, label }: { stream: MediaStream | null; muted: boolean; label: string }) {
   const ref = useRef<HTMLVideoElement>(null)
+
   useEffect(() => {
-    if (ref.current) ref.current.srcObject = stream
+    if (!ref.current) return
+    ref.current.srcObject = stream
+    if (stream) void ref.current.play().catch(() => undefined)
   }, [stream])
+
   return stream ? <video ref={ref} autoPlay playsInline muted={muted} aria-label={label} /> : null
+}
+
+function mediaErrorMessage(error: unknown, kind: 'camera' | 'microphone' | 'screen') {
+  const name = error instanceof DOMException ? error.name : ''
+  if (!window.isSecureContext && window.location.hostname !== 'localhost') {
+    return 'Câmera e microfone exigem HTTPS. Abra o ambiente seguro de homologação para transmitir.'
+  }
+  if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
+    return kind === 'screen'
+      ? 'O compartilhamento foi cancelado ou bloqueado. Escolha uma tela, janela ou aba para continuar.'
+      : `Permissão de ${kind === 'camera' ? 'câmera' : 'microfone'} bloqueada. Libere o acesso no ícone de permissões do navegador e tente novamente.`
+  }
+  if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
+    return `Nenhum dispositivo de ${kind === 'camera' ? 'câmera' : 'áudio'} foi encontrado.`
+  }
+  if (name === 'NotReadableError' || name === 'TrackStartError') {
+    return 'O dispositivo está ocupado por outro aplicativo. Feche outros apps que estejam usando a câmera ou o microfone.'
+  }
+  return kind === 'screen'
+    ? 'Não foi possível iniciar o compartilhamento de tela neste navegador.'
+    : `Não foi possível acessar ${kind === 'camera' ? 'a câmera' : 'o microfone'}.`
 }
 
 export function LiveStudio({ onClose }: { onClose: () => void }) {
@@ -24,24 +58,69 @@ export function LiveStudio({ onClose }: { onClose: () => void }) {
   const [cameraEnabled, setCameraEnabled] = useState(false)
   const [micEnabled, setMicEnabled] = useState(true)
   const [error, setError] = useState('')
+  const [roomId] = useState(createRoomId)
+  const [viewerCount, setViewerCount] = useState(0)
+  const [shareMessage, setShareMessage] = useState('')
   const [interactions, setInteractions] = useState<Record<InteractionChannel, boolean>>({
     chat: true,
     questions: true,
     reactions: true,
   })
+
   const screenRef = useRef<MediaStream | null>(null)
   const cameraRef = useRef<MediaStream | null>(null)
   const microphoneRef = useRef<MediaStream | null>(null)
+  const roomRef = useRef<BroadcastRoom | null>(null)
+  const stateRef = useRef<LiveState>('preparing')
 
-  const replaceStream = (kind: 'screen' | 'camera' | 'microphone', next: MediaStream | null) => {
+  const viewerUrl = useMemo(() => createViewerUrl(roomId), [roomId])
+  const isLocalhost = typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname)
+
+  useEffect(() => {
+    stateRef.current = state
+  }, [state])
+
+  const currentStreams = () => ({
+    screen: screenRef.current,
+    camera: cameraRef.current,
+    microphone: microphoneRef.current,
+  })
+
+  const publishCurrentTo = (target?: string) => {
+    const room = roomRef.current
+    if (!room) return
+    const streams = currentStreams()
+    ;(Object.entries(streams) as Array<[BroadcastMediaKind, MediaStream | null]>).forEach(([kind, stream]) => {
+      if (stream) publishStream(room, stream, kind, target)
+    })
+  }
+
+  const replaceStream = (kind: BroadcastMediaKind, next: MediaStream | null) => {
     const refs = { screen: screenRef, camera: cameraRef, microphone: microphoneRef }
     const setters = { screen: setScreen, camera: setCamera, microphone: setMicrophone }
-    stopStream(refs[kind].current)
+    const previous = refs[kind].current
+    const room = roomRef.current
+
+    if (previous && room) {
+      try { unpublishStream(room, previous) } catch { /* peer may already be gone */ }
+    }
+    stopStream(previous)
     refs[kind].current = next
     setters[kind](next)
+
+    if (next && room && (stateRef.current === 'live' || stateRef.current === 'paused')) {
+      publishStream(room, next, kind)
+    }
+  }
+
+  const leaveRoom = () => {
+    roomRef.current?.leave()
+    roomRef.current = null
+    setViewerCount(0)
   }
 
   useEffect(() => () => {
+    leaveRoom()
     stopStream(screenRef.current)
     stopStream(cameraRef.current)
     stopStream(microphoneRef.current)
@@ -50,66 +129,99 @@ export function LiveStudio({ onClose }: { onClose: () => void }) {
   const requestScreen = async () => {
     setError('')
     if (!navigator.mediaDevices?.getDisplayMedia) {
-      setError('Este navegador não oferece compartilhamento de tela.')
+      setError('Este navegador não oferece compartilhamento de tela. Use o modo Somente câmera ou um navegador compatível.')
       return false
     }
     try {
-      const privacyConstraints = {
+      const next = await navigator.mediaDevices.getDisplayMedia({
         video: true,
         audio: false,
-        // Prefer a tab and keep this application's own tab out of the picker where supported.
         preferCurrentTab: true,
         selfBrowserSurface: 'exclude',
         surfaceSwitching: 'include',
-      } as DisplayMediaStreamOptions
-      const next = await navigator.mediaDevices.getDisplayMedia(privacyConstraints)
+      } as DisplayMediaStreamOptions)
       const track = next.getVideoTracks()[0]
       track?.addEventListener('ended', () => {
-        if (screenRef.current === next) {
-          screenRef.current = null
-          setScreen(null)
-          if (layout !== 'camera') setState('preparing')
-        }
+        if (screenRef.current !== next) return
+        replaceStream('screen', null)
+        if (layout !== 'camera' && stateRef.current !== 'ended') setState('preparing')
       }, { once: true })
       replaceStream('screen', next)
       return true
-    } catch {
-      setError('Compartilhamento não autorizado. Escolha uma fonte no seletor do navegador para continuar.')
+    } catch (reason) {
+      setError(mediaErrorMessage(reason, 'screen'))
       return false
     }
   }
 
   const requestCamera = async () => {
     setError('')
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setError('Este navegador não disponibiliza acesso à câmera.')
+      return false
+    }
     try {
-      const next = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+      const next = await navigator.mediaDevices.getUserMedia({
+        video: {
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          frameRate: { ideal: 30, max: 30 },
+          facingMode: 'user',
+        },
+        audio: false,
+      })
       replaceStream('camera', next)
       setCameraEnabled(true)
+      if (layout === 'screen') setLayout(screenRef.current ? 'screen-camera' : 'camera')
       return true
-    } catch {
+    } catch (reason) {
       setCameraEnabled(false)
-      setError('Não foi possível acessar a câmera. Verifique a permissão do navegador.')
+      setError(mediaErrorMessage(reason, 'camera'))
       return false
     }
   }
 
   const requestMicrophone = async () => {
     setError('')
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setMicEnabled(false)
+      setError('Este navegador não disponibiliza acesso ao microfone.')
+      return false
+    }
     try {
-      const next = await navigator.mediaDevices.getUserMedia({ video: false, audio: true })
+      const next = await navigator.mediaDevices.getUserMedia({
+        video: false,
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      })
       replaceStream('microphone', next)
       setMicEnabled(true)
-    } catch {
+      return true
+    } catch (reason) {
       setMicEnabled(false)
-      setError('Não foi possível acessar o microfone. Você pode continuar sem áudio.')
+      setError(mediaErrorMessage(reason, 'microphone'))
+      return false
     }
   }
 
+  const selectLayout = async (next: Layout) => {
+    setLayout(next)
+    setError('')
+    if (next === 'camera' && !cameraRef.current) await requestCamera()
+    if (next === 'screen-camera' && !cameraRef.current) await requestCamera()
+  }
+
   const preview = async () => {
-    const hasVideo = layout === 'camera' ? (camera || await requestCamera()) : (screen || await requestScreen())
+    let hasVideo = false
+    if (layout === 'camera') hasVideo = Boolean(cameraRef.current) || await requestCamera()
+    else hasVideo = Boolean(screenRef.current) || await requestScreen()
     if (!hasVideo) return
-    if (layout === 'screen-camera' && !camera) await requestCamera()
-    if (micEnabled && !microphone) await requestMicrophone()
+
+    if (layout === 'screen-camera' && !cameraRef.current) await requestCamera()
+    if (micEnabled && !microphoneRef.current) await requestMicrophone()
     setState('preview')
   }
 
@@ -117,30 +229,58 @@ export function LiveStudio({ onClose }: { onClose: () => void }) {
     if (cameraEnabled) {
       replaceStream('camera', null)
       setCameraEnabled(false)
-      if (layout === 'camera') setLayout(screen ? 'screen' : 'camera')
-    } else await requestCamera()
+      if (layout === 'screen-camera') setLayout('screen')
+    } else {
+      await requestCamera()
+    }
   }
 
   const toggleMic = async () => {
-    if (!microphone) return requestMicrophone()
+    if (!microphoneRef.current) {
+      await requestMicrophone()
+      return
+    }
     const enabled = !micEnabled
-    microphone.getAudioTracks().forEach((track) => { track.enabled = enabled })
+    microphoneRef.current.getAudioTracks().forEach((track) => { track.enabled = enabled })
     setMicEnabled(enabled)
   }
 
+  const startBroadcast = () => {
+    setError('')
+    if (!ready) return
+    try {
+      const room = createLiveRoom(roomId, () => {
+        setError('Algumas redes podem bloquear conexões diretas. Se o celular não conectar, teste sem VPN e, de preferência, em outra combinação de Wi-Fi/dados móveis.')
+      })
+      roomRef.current = room
+      room.onPeerJoin = (peerId) => {
+        setViewerCount(Object.keys(room.getPeers()).length)
+        publishCurrentTo(peerId)
+      }
+      room.onPeerLeave = () => setViewerCount(Object.keys(room.getPeers()).length)
+      publishCurrentTo()
+      setState('live')
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Não foi possível iniciar a transmissão.')
+    }
+  }
+
   const pause = () => {
-    screen?.getVideoTracks().forEach((track) => { track.enabled = false })
-    camera?.getVideoTracks().forEach((track) => { track.enabled = false })
+    screenRef.current?.getVideoTracks().forEach((track) => { track.enabled = false })
+    cameraRef.current?.getVideoTracks().forEach((track) => { track.enabled = false })
+    microphoneRef.current?.getAudioTracks().forEach((track) => { track.enabled = false })
     setState('paused')
   }
 
   const resume = () => {
-    screen?.getVideoTracks().forEach((track) => { track.enabled = true })
-    camera?.getVideoTracks().forEach((track) => { track.enabled = true })
+    screenRef.current?.getVideoTracks().forEach((track) => { track.enabled = true })
+    cameraRef.current?.getVideoTracks().forEach((track) => { track.enabled = true })
+    microphoneRef.current?.getAudioTracks().forEach((track) => { track.enabled = micEnabled })
     setState('live')
   }
 
   const finish = () => {
+    leaveRoom()
     replaceStream('screen', null)
     replaceStream('camera', null)
     replaceStream('microphone', null)
@@ -149,8 +289,17 @@ export function LiveStudio({ onClose }: { onClose: () => void }) {
     setState('ended')
   }
 
+  const copyViewerUrl = async () => {
+    try {
+      await navigator.clipboard.writeText(viewerUrl)
+      setShareMessage('Link copiado. Abra no celular para assistir.')
+    } catch {
+      setShareMessage('Copie o endereço abaixo e abra no celular.')
+    }
+  }
+
   const needsScreen = layout !== 'camera'
-  const ready = (needsScreen ? !!screen : !!camera) && state !== 'ended'
+  const ready = (needsScreen ? Boolean(screen) : Boolean(camera)) && state !== 'ended'
   const toggleInteraction = (channel: InteractionChannel) => {
     setInteractions((current) => ({ ...current, [channel]: !current[channel] }))
   }
@@ -158,52 +307,71 @@ export function LiveStudio({ onClose }: { onClose: () => void }) {
   return <div className="studio-shell" role="dialog" aria-modal="true" aria-labelledby="studio-title">
     <header className="studio-header">
       <a className="brand institute-brand-link" href="#inicio" aria-label="Instituto Tela Viva"><BrandMark /></a>
-      <span className={`studio-status ${state}`}>{state === 'live' ? '● AO VIVO' : state === 'paused' ? 'Ⅱ PAUSADA' : state === 'ended' ? 'FINALIZADA' : 'ESTÚDIO'}</span>
+      <span className={`studio-status ${state}`}>{state === 'live' ? `● AO VIVO · ${viewerCount} assistindo` : state === 'paused' ? 'Ⅱ PAUSADA' : state === 'ended' ? 'FINALIZADA' : 'ESTÚDIO'}</span>
       <button className="studio-close" onClick={() => { finish(); onClose() }} aria-label="Fechar estúdio">×</button>
     </header>
+
     <main className="studio-main">
       <section className="studio-preview-panel">
         <div className={`video-stage layout-${layout}`}>
-          {state === 'paused' && <div className="stage-message"><strong>Transmissão pausada</strong><span>Seu vídeo está temporariamente oculto.</span></div>}
+          {state === 'paused' && <div className="stage-message"><strong>Transmissão pausada</strong><span>Áudio e vídeo estão temporariamente suspensos.</span></div>}
           {state === 'ended' && <div className="stage-message"><strong>Live finalizada</strong><span>As fontes foram desconectadas com segurança.</span></div>}
           {state !== 'paused' && state !== 'ended' && <>
             {needsScreen && <Video stream={screen} muted label="Prévia da tela compartilhada" />}
             {(layout === 'camera' || layout === 'screen-camera') && <Video stream={camera} muted label="Prévia da câmera" />}
-            {!ready && <div className="stage-message"><span className="stage-icon">▣</span><strong>Sua prévia aparecerá aqui</strong><span>Nenhuma fonte é acessada sem sua autorização.</span></div>}
+            {!ready && <div className="stage-message"><span className="stage-icon">▣</span><strong>Sua prévia aparecerá aqui</strong><span>Escolha Somente câmera para testar rapidamente, ou selecione uma tela para compartilhar.</span></div>}
           </>}
         </div>
+
         <div className="studio-controls" aria-label="Controles da transmissão">
           {state === 'live' && <button onClick={pause} aria-label="Pausar">Ⅱ <span>Pausar</span></button>}
           {state === 'paused' && <button onClick={resume} aria-label="Retomar">▶ <span>Retomar</span></button>}
           <button onClick={toggleMic} aria-pressed={!micEnabled} aria-label={micEnabled ? 'Silenciar' : 'Ativar microfone'}>{micEnabled ? '◉' : '⊘'} <span>{micEnabled ? 'Silenciar' : 'Ativar microfone'}</span></button>
           <button onClick={toggleCamera} aria-pressed={cameraEnabled} aria-label={cameraEnabled ? 'Desligar câmera' : 'Ligar câmera'}>▣ <span>{cameraEnabled ? 'Desligar câmera' : 'Ligar câmera'}</span></button>
-          {needsScreen && <button onClick={requestScreen} aria-label="Trocar fonte">↻ <span>Trocar fonte</span></button>}
+          {needsScreen && <button onClick={requestScreen} aria-label="Trocar fonte">↻ <span>{screen ? 'Trocar fonte' : 'Escolher tela'}</span></button>}
           {(state === 'live' || state === 'paused') && <button className="danger" onClick={finish} aria-label="Finalizar">■ <span>Finalizar</span></button>}
         </div>
       </section>
+
       <aside className="studio-settings">
         <p className="eyebrow">CONFIGURAÇÃO</p><h1 id="studio-title">Prepare sua live</h1>
         <fieldset><legend>Layout</legend>
-          <label><input type="radio" name="layout" checked={layout === 'screen'} onChange={() => setLayout('screen')} /><span>▱</span><b>Tela</b></label>
-          <label><input type="radio" name="layout" checked={layout === 'screen-camera'} onChange={() => setLayout('screen-camera')} /><span>▰</span><b>Tela + câmera</b></label>
-          <label><input type="radio" name="layout" checked={layout === 'camera'} onChange={() => setLayout('camera')} /><span>▣</span><b>Somente câmera</b></label>
+          <label><input type="radio" name="layout" checked={layout === 'screen'} onChange={() => void selectLayout('screen')} /><span>▱</span><b>Tela</b></label>
+          <label><input type="radio" name="layout" checked={layout === 'screen-camera'} onChange={() => void selectLayout('screen-camera')} /><span>▰</span><b>Tela + câmera</b></label>
+          <label><input type="radio" name="layout" checked={layout === 'camera'} onChange={() => void selectLayout('camera')} /><span>▣</span><b>Somente câmera</b></label>
         </fieldset>
+
+        <div className="device-status-card" aria-live="polite">
+          <span className={camera ? 'ok' : ''}>Câmera {camera ? 'pronta' : 'desligada'}</span>
+          <span className={microphone && micEnabled ? 'ok' : ''}>Microfone {microphone && micEnabled ? 'pronto' : 'desligado'}</span>
+          <span className={screen ? 'ok' : ''}>Tela {screen ? 'selecionada' : 'não selecionada'}</span>
+        </div>
+
         <fieldset className="interaction-settings"><legend>Interação ao vivo</legend>
           <label><input type="checkbox" checked={interactions.chat} onChange={() => toggleInteraction('chat')} /><span aria-hidden="true">☵</span><b>Chat</b></label>
           <label><input type="checkbox" checked={interactions.questions} onChange={() => toggleInteraction('questions')} /><span aria-hidden="true">?</span><b>Perguntas</b></label>
           <label><input type="checkbox" checked={interactions.reactions} onChange={() => toggleInteraction('reactions')} /><span aria-hidden="true">♡</span><b>Reações</b></label>
         </fieldset>
-        <p className="interaction-note" role="status">
-          {Object.values(interactions).filter(Boolean).length} de 3 canais habilitados. Você pode alterá-los durante a live.
-        </p>
+        <p className="interaction-note" role="status">{Object.values(interactions).filter(Boolean).length} de 3 canais habilitados.</p>
+
         {needsScreen && <div className="source-card"><div><strong>Monitor, janela ou aba</strong><p>O navegador abrirá um seletor seguro para você escolher exatamente o que compartilhar.</p></div><button className="secondary" onClick={requestScreen}>{screen ? 'Trocar fonte' : 'Escolher fonte'}</button></div>}
-        <div className="permission-note"><strong>Você está no controle</strong><p>O Instituto Tela Viva não acessa nem controla seu computador. O compartilhamento só começa após sua autorização explícita e pode ser interrompido a qualquer momento.</p></div>
+
+        {(state === 'live' || state === 'paused') && <div className="broadcast-share-card">
+          <div><strong>Teste no celular</strong><p>Abra este endereço em outro dispositivo. O vídeo é enviado em tempo real diretamente entre os navegadores.</p></div>
+          <code>{viewerUrl}</code>
+          <button className="primary" onClick={copyViewerUrl}>Copiar link para assistir</button>
+          {shareMessage && <small>{shareMessage}</small>}
+          {isLocalhost && <p className="broadcast-local-warning">Você está em localhost. Para abrir no celular, inicie a transmissão pela URL HTTPS de homologação ou acesse este servidor pelo IP da sua rede local.</p>}
+        </div>}
+
+        <div className="permission-note"><strong>Você está no controle</strong><p>Câmera, microfone e tela só são acessados após sua autorização explícita. Ao finalizar, todas as trilhas locais e conexões ao vivo são encerradas.</p></div>
         {error && <p className="studio-error" role="alert">{error}</p>}
+
         <div className="studio-actions">
           {(state === 'preparing' || state === 'ended') && <button className="secondary" onClick={preview}>Ver preview</button>}
-          {state === 'preview' && <button className="primary" disabled={!ready} onClick={() => setState('live')}>Iniciar transmissão</button>}
+          {state === 'preview' && <button className="primary" disabled={!ready} onClick={startBroadcast}>Iniciar transmissão</button>}
         </div>
-        <small className="broadcast-note">A versão atual prepara e controla as fontes locais. A distribuição para espectadores será conectada ao provedor de vídeo.</small>
+        <small className="broadcast-note">Homologação funcional: a transmissão usa conexão WebRTC direta entre o criador e os espectadores. Em redes que bloqueiam conexões P2P, será necessário um relay TURN na etapa de produção.</small>
       </aside>
     </main>
   </div>
