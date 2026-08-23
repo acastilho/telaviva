@@ -53,9 +53,7 @@ def _login(email: str) -> dict[str, str]:
         "/auth/login", json={"email": email, "password": "strong-password-123"}
     )
     assert response.status_code == 200
-    return {
-        "Authorization": f"Bearer {response.json()['access_token']}"
-    }
+    return {"Authorization": f"Bearer {response.json()['access_token']}"}
 
 
 def test_complete_live_class_journey(monkeypatch: MonkeyPatch) -> None:
@@ -87,18 +85,20 @@ def test_complete_live_class_journey(monkeypatch: MonkeyPatch) -> None:
     hub.connections.clear()
     limiter._requests.clear()
 
+    creator_email = "creator@journey.example.com"
+    viewer_email = "viewer@journey.example.com"
+    admin_email = "admin@journey.example.com"
+
     try:
         # Cadastro e login usam o fluxo real, inclusive hash de senha e JWT.
-        creator_id = _register("creator@journey.test")
-        viewer_id = _register("viewer@journey.test")
-        admin_id = _register("admin@journey.test")
-        identities.users[creator_id] = replace(
-            identities.users[creator_id], role=Role.CREATOR
-        )
+        creator_id = _register(creator_email)
+        viewer_id = _register(viewer_email)
+        admin_id = _register(admin_email)
+        identities.users[creator_id] = replace(identities.users[creator_id], role=Role.CREATOR)
         identities.users[admin_id] = replace(identities.users[admin_id], role=Role.ADMIN)
-        creator_headers = _login("creator@journey.test")
-        viewer_headers = _login("viewer@journey.test")
-        admin_headers = _login("admin@journey.test")
+        creator_headers = _login(creator_email)
+        viewer_headers = _login(viewer_email)
+        admin_headers = _login(admin_email)
         assert identities.users[viewer_id].role is Role.VIEWER
 
         creator = identities.users[creator_id]
@@ -164,9 +164,7 @@ def test_complete_live_class_journey(monkeypatch: MonkeyPatch) -> None:
             "/orders", headers=viewer_headers, json={"product_id": product.json()["id"]}
         )
         assert order.status_code == 201
-        assert client.post(
-            f"/streams/{stream_id}/access", headers=viewer_headers
-        ).status_code == 403
+        assert client.post(f"/streams/{stream_id}/access", headers=viewer_headers).status_code == 403
         payment = client.post(
             "/payment-events",
             headers=admin_headers,
@@ -180,9 +178,7 @@ def test_complete_live_class_journey(monkeypatch: MonkeyPatch) -> None:
             },
         )
         assert payment.status_code == 201
-        assert client.post(
-            f"/streams/{stream_id}/access", headers=viewer_headers
-        ).status_code == 200
+        assert client.post(f"/streams/{stream_id}/access", headers=viewer_headers).status_code == 200
 
         # Acessar a transmissão autenticada e participar do chat.
         viewer_token = viewer_headers["Authorization"].removeprefix("Bearer ")
@@ -214,14 +210,10 @@ def test_complete_live_class_journey(monkeypatch: MonkeyPatch) -> None:
         assert confirmed_tip.status_code == 200
 
         # Finalizar transmissão, gerar gravação e liberar replay.
-        started = client.post(
-            f"/streams/{stream_id}/broadcast/start", headers=creator_headers
-        )
+        started = client.post(f"/streams/{stream_id}/broadcast/start", headers=creator_headers)
         assert started.status_code == 200
         recording_id = started.json()["id"]
-        ended = client.post(
-            f"/streams/{stream_id}/broadcast/end", headers=creator_headers
-        )
+        ended = client.post(f"/streams/{stream_id}/broadcast/end", headers=creator_headers)
         assert ended.json()["status"] == "PROCESSING"
         completed = client.put(
             f"/recordings/{recording_id}/complete",

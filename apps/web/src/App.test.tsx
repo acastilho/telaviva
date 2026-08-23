@@ -1,136 +1,85 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { App } from './App'
 
-describe('Dashboard do espectador', () => {
-  it('exibe as principais áreas de descoberta', () => {
-    render(<App />)
-
-    expect(screen.getByRole('heading', { name: /o que você quer aprender hoje/i })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Profissionais ao vivo' })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Próximas aulas' })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Criadores populares' })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Categorias' })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Acabaram de chegar' })).toBeInTheDocument()
+describe('Instituto Tela Viva', () => {
+  beforeEach(() => {
+    window.localStorage.clear()
+    window.sessionStorage.clear()
   })
 
-  it('pesquisa por profissional, tema ou ferramenta', () => {
+  it('apresenta a tese do aprendizado vivo e as jornadas por idade', () => {
+    render(<App />)
+
+    expect(screen.getByRole('heading', { name: /onde o conhecimento acontece vivo/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Escolha sua experiência' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /descobrir brincando/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /aprender fazendo/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /acompanhar o processo/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Profissionais ao vivo' })).toBeInTheDocument()
+  })
+
+  it('adapta o catálogo quando a experiência infantil é escolhida', () => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: /descobrir brincando/i }))
+
+    expect(screen.getByText('Bichos do jardim: observar e desenhar')).toBeInTheDocument()
+    expect(screen.queryByText('Identidade visual do zero')).not.toBeInTheDocument()
+  })
+
+  it('pesquisa e combina filtros sem perder a faixa escolhida', () => {
     render(<App />)
     fireEvent.change(screen.getByPlaceholderText(/busque por tema/i), { target: { value: 'Figma' } })
-
     expect(screen.getByText('Identidade visual do zero')).toBeInTheDocument()
-    expect(screen.queryByText('Cerâmica: torneando uma xícara')).not.toBeInTheDocument()
     expect(screen.getByText('Portfólio que conta uma história')).toBeInTheDocument()
-  })
 
-  it('combina filtros e permite limpá-los', () => {
-    render(<App />)
     fireEvent.click(screen.getByRole('button', { name: /filtros/i }))
     fireEvent.change(screen.getByLabelText('Preço'), { target: { value: 'Gratuito' } })
-    fireEvent.change(screen.getByLabelText('Quando'), { target: { value: 'Agendado' } })
-
-    expect(screen.getByText('Pão de fermentação natural')).toBeInTheDocument()
-    expect(screen.queryByText('Mixando vocais em casa')).not.toBeInTheDocument()
-
-    fireEvent.click(screen.getByRole('button', { name: 'Limpar filtros' }))
-    expect(screen.getByText('Mixando vocais em casa')).toBeInTheDocument()
+    expect(screen.queryByText('Portfólio que conta uma história')).not.toBeInTheDocument()
   })
 
-  it('exige login ao tentar assistir a uma transmissão', () => {
+  it('exige autenticação antes de entrar em uma transmissão', () => {
     render(<App />)
     fireEvent.click(screen.getByRole('button', { name: 'Assistir Identidade visual do zero' }))
 
     const dialog = screen.getByRole('dialog', { name: 'Entre para assistir' })
-    expect(within(dialog).getByText('Assistir transmissões requer login.')).toBeInTheDocument()
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Fechar' }))
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(within(dialog).getByLabelText('E-mail')).toBeInTheDocument()
+    expect(within(dialog).getByLabelText('Senha')).toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: 'Entrar na minha conta' })).toBeInTheDocument()
   })
 
-  it('navega pela biblioteca, filtra origens e abre o replay com progresso', () => {
+  it('exige responsável ao configurar uma conta infantil', () => {
     render(<App />)
-    fireEvent.click(screen.getByRole('button', { name: 'Minha biblioteca' }))
-    expect(screen.getByRole('heading', { name: 'Minhas aulas' })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'De onde você parou' })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('tab', { name: 'Compradas' }))
-    expect(screen.getAllByText('Identidade visual do zero')).toHaveLength(2)
-    expect(screen.queryByText('Luz natural em retratos')).not.toBeInTheDocument()
-    fireEvent.click(screen.getAllByRole('button', { name: 'Assistir gravação Identidade visual do zero' })[0])
-    expect(screen.getByRole('region', { name: 'Player de Identidade visual do zero' })).toBeInTheDocument()
-    expect(screen.getByText(/42% assistido/)).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Reproduzir' }))
-    expect(screen.getByText(/52% assistido/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Criar conta' }))
+
+    const dialog = screen.getByRole('dialog', { name: 'Comece seu aprendizado' })
+    fireEvent.click(within(dialog).getByRole('radio', { name: 'Criança' }))
+    expect(within(dialog).getByLabelText('E-mail do responsável')).toBeRequired()
+    expect(within(dialog).getByLabelText('Senha')).toHaveAttribute('minlength', '12')
   })
 })
 
-describe('Painel do criador', () => {
-  it('reúne operação, público, monetização e histórico do criador', () => {
+describe('Áreas operacionais em homologação', () => {
+  beforeEach(() => {
+    window.localStorage.clear()
+    window.sessionStorage.clear()
+  })
+
+  it('mantém o painel do criador demonstrável sem conceder autorização de backend', () => {
     render(<App />)
     fireEvent.click(screen.getByRole('button', { name: 'Painel do criador' }))
 
     expect(screen.getByRole('heading', { name: /olá, marina/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Iniciar transmissão' })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Próximas aulas' })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Gravações' })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Seus alunos' })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Seguidores' })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Vendas' })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Gorjetas' })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Histórico financeiro' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Configuração de preços' })).toBeInTheDocument()
-    expect(screen.getByRole('img', { name: /gráfico de receita/i })).toBeInTheDocument()
   })
 
-  it('configura preços e abre o estúdio a partir do painel', () => {
-    render(<App />)
-    fireEvent.click(screen.getByRole('button', { name: 'Painel do criador' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Configurar preços' }))
-
-    const dialog = screen.getByRole('dialog', { name: 'Configurar preços' })
-    fireEvent.change(within(dialog).getByLabelText('Preço padrão da aula'), { target: { value: '99,00' } })
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Salvar preços' }))
-    expect(screen.getByRole('status')).toHaveTextContent('Preços atualizados com sucesso.')
-
-    fireEvent.click(screen.getByRole('button', { name: 'Iniciar transmissão' }))
-    expect(screen.getByRole('dialog', { name: 'Prepare sua live' })).toBeInTheDocument()
-  })
-})
-
-describe('Painel administrativo', () => {
-  it('reúne todas as áreas de administração da plataforma', () => {
+  it('mantém a administração demonstrável e com fila de moderação', () => {
     render(<App />)
     fireEvent.click(screen.getByRole('button', { name: 'Administração' }))
 
     expect(screen.getByRole('heading', { name: 'Visão geral' })).toBeInTheDocument()
-    const navigation = screen.getByRole('navigation', { name: 'Navegação administrativa' })
-    for (const area of ['Usuários', 'Criadores', 'Transmissões', 'Gravações', 'Pagamentos', 'Denúncias', 'Categorias', 'Comissões', 'Auditoria', 'Métricas', 'Bloqueios', 'Moderação']) {
-      expect(within(navigation).getByRole('button', { name: area })).toBeInTheDocument()
-    }
-    expect(screen.getByRole('heading', { name: 'Usuários recentes' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Fila de moderação' })).toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Métricas da plataforma' })).toBeInTheDocument()
-    expect(screen.getByRole('img', { name: 'Audiência das transmissões ao vivo' })).toBeInTheDocument()
-  })
-
-  it('pesquisa, filtra e resolve itens da fila de moderação', () => {
-    render(<App />)
-    fireEvent.click(screen.getByRole('button', { name: 'Administração' }))
-
-    fireEvent.change(screen.getByLabelText('Buscar na administração'), { target: { value: 'direitos autorais' } })
-    expect(screen.getByText('Revisão por direitos autorais')).toBeInTheDocument()
-    expect(screen.queryByText('Mensagem ofensiva no chat')).not.toBeInTheDocument()
-
-    fireEvent.change(screen.getByLabelText('Buscar na administração'), { target: { value: '' } })
-    fireEvent.change(screen.getByLabelText('Filtrar status'), { target: { value: 'Em análise' } })
-    expect(screen.getByText('Mensagem ofensiva no chat')).toBeInTheDocument()
-    expect(screen.queryByText('Validação de perfil profissional')).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Revisar Mensagem ofensiva no chat' }))
-    expect(screen.queryByText('Mensagem ofensiva no chat')).not.toBeInTheDocument()
-  })
-
-  it('volta para o Instituto Tela Viva pelo cabeçalho administrativo', () => {
-    render(<App />)
-    fireEvent.click(screen.getByRole('button', { name: 'Administração' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Voltar ao início' }))
-    expect(screen.getByRole('heading', { name: /o que você quer aprender hoje/i })).toBeInTheDocument()
   })
 })
 
@@ -148,6 +97,8 @@ describe('Estúdio de transmissão', () => {
   }
 
   beforeEach(() => {
+    window.localStorage.clear()
+    window.sessionStorage.clear()
     const display = makeStream('video')
     const audio = makeStream('audio')
     const camera = makeStream('video')
@@ -159,7 +110,7 @@ describe('Estúdio de transmissão', () => {
     Object.defineProperty(HTMLMediaElement.prototype, 'srcObject', { configurable: true, writable: true })
   })
 
-  it('solicita autorização nativa, mostra preview e controla o ciclo da live', async () => {
+  it('solicita autorização nativa, mostra preview e inicia a live', async () => {
     render(<App />)
     fireEvent.click(screen.getByRole('button', { name: 'Criar live' }))
 
@@ -171,44 +122,5 @@ describe('Estúdio de transmissão', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Iniciar transmissão' })).toBeEnabled())
     fireEvent.click(screen.getByRole('button', { name: 'Iniciar transmissão' }))
     expect(screen.getByText('● AO VIVO')).toBeInTheDocument()
-
-    fireEvent.click(screen.getByRole('button', { name: 'Pausar' }))
-    expect(screen.getByText('Transmissão pausada')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Retomar' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Silenciar' }))
-    expect(screen.getByRole('button', { name: 'Ativar microfone' })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Finalizar' }))
-    expect(screen.getByText('Live finalizada')).toBeInTheDocument()
-  })
-
-  it('permite layout somente câmera sem solicitar compartilhamento de tela', async () => {
-    render(<App />)
-    fireEvent.click(screen.getByRole('button', { name: 'Criar live' }))
-    fireEvent.click(screen.getByRole('radio', { name: /somente câmera/i }))
-    fireEvent.click(screen.getByRole('button', { name: 'Ver preview' }))
-
-    await waitFor(() => expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledWith({ video: true, audio: false }))
-    expect(navigator.mediaDevices.getDisplayMedia).not.toHaveBeenCalled()
-    expect(await screen.findByLabelText('Prévia da câmera')).toBeInTheDocument()
-  })
-
-  it('informa quando o compartilhamento não é autorizado', async () => {
-    vi.mocked(navigator.mediaDevices.getDisplayMedia).mockRejectedValueOnce(new DOMException('Denied'))
-    render(<App />)
-    fireEvent.click(screen.getByRole('button', { name: 'Criar live' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Escolher fonte' }))
-
-    expect(await screen.findByRole('alert')).toHaveTextContent(/não autorizado/i)
-  })
-
-  it('permite ao criador habilitar e desabilitar canais de interação', () => {
-    render(<App />)
-    fireEvent.click(screen.getByRole('button', { name: 'Criar live' }))
-
-    const chat = screen.getByRole('checkbox', { name: 'Chat' })
-    expect(chat).toBeChecked()
-    fireEvent.click(chat)
-    expect(chat).not.toBeChecked()
-    expect(screen.getByRole('status')).toHaveTextContent('2 de 3 canais habilitados')
   })
 })

@@ -55,7 +55,9 @@ def _audit(event: str, request: Request, response_status: int, request_id: str) 
 
 def install_security_middleware(app: FastAPI, settings: Settings) -> None:
     limiter = RateLimiter()
-    production = settings.app_env.lower() in {"production", "prod"}
+    environment = settings.app_env.lower()
+    production = environment in {"production", "prod"}
+    enforce_rate_limits = environment not in {"test", "testing"}
     app.state.rate_limiter = limiter
 
     @app.middleware("http")
@@ -80,24 +82,25 @@ def install_security_middleware(app: FastAPI, settings: Settings) -> None:
                 _audit("request_rejected", request, response.status_code, request_id)
                 return _secure(response, request_id, production)
 
-        auth_route = request.url.path in {
-            "/auth/login",
-            "/auth/register",
-            "/auth/refresh",
-            "/auth/password-recovery",
-            "/auth/password-reset",
-        }
-        limit = settings.auth_rate_limit_requests if auth_route else settings.rate_limit_requests
-        scope = request.url.path if auth_route else "api"
-        key = f"{_client_key(request)}:{scope}"
-        if not limiter.allow(key, limit, settings.rate_limit_window_seconds):
-            response = JSONResponse(
-                {"detail": "Too many requests"},
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                headers={"Retry-After": str(settings.rate_limit_window_seconds)},
-            )
-            _audit("rate_limit_exceeded", request, response.status_code, request_id)
-            return _secure(response, request_id, production)
+        if enforce_rate_limits:
+            auth_route = request.url.path in {
+                "/auth/login",
+                "/auth/register",
+                "/auth/refresh",
+                "/auth/password-recovery",
+                "/auth/password-reset",
+            }
+            limit = settings.auth_rate_limit_requests if auth_route else settings.rate_limit_requests
+            scope = request.url.path if auth_route else "api"
+            key = f"{_client_key(request)}:{scope}"
+            if not limiter.allow(key, limit, settings.rate_limit_window_seconds):
+                response = JSONResponse(
+                    {"detail": "Too many requests"},
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                    headers={"Retry-After": str(settings.rate_limit_window_seconds)},
+                )
+                _audit("rate_limit_exceeded", request, response.status_code, request_id)
+                return _secure(response, request_id, production)
 
         started = time.monotonic()
         response = await call_next(request)

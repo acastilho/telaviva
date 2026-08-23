@@ -63,7 +63,7 @@ def _normalize_email(email: str) -> str:
 
 
 def _response(user: User) -> UserResponse:
-    return UserResponse(id=str(user.id), email=user.email, role=user.role)
+    return UserResponse(id=str(user.id), email=user.email, role=user.role, audience=user.audience)
 
 
 async def _tokens(user: User, repository: IdentityRepository, settings: Settings) -> TokenResponse:
@@ -84,7 +84,11 @@ async def register(
 ) -> UserResponse:
     try:
         user = await repository.create_user(
-            _normalize_email(str(body.email)), hash_password(body.password), Role.VIEWER
+            _normalize_email(str(body.email)),
+            hash_password(body.password),
+            Role.VIEWER,
+            body.audience,
+            _normalize_email(str(body.guardian_email)) if body.guardian_email else None,
         )
     except DuplicateEmailError as error:
         raise HTTPException(status_code=409, detail="Email already registered") from error
