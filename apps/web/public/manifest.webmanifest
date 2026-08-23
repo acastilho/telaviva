@@ -3,15 +3,15 @@
   "short_name": "Tela Viva",
   "description": "Onde o conhecimento acontece vivo.",
   "lang": "pt-BR",
-  "start_url": "/",
-  "scope": "/",
+  "start_url": "/telaviva/",
+  "scope": "/telaviva/",
   "display": "standalone",
   "orientation": "any",
   "background_color": "#0a0d0b",
   "theme_color": "#0a0d0b",
   "icons": [
     {
-      "src": "/favicon.svg",
+      "src": "favicon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"
