@@ -5,7 +5,7 @@ from uuid import UUID, uuid4
 import asyncpg
 
 from app.config import Settings
-from app.identity.models import Role, User
+from app.identity.models import Audience, Role, User
 
 
 class DuplicateEmailError(Exception):
@@ -13,7 +13,14 @@ class DuplicateEmailError(Exception):
 
 
 class IdentityRepository(Protocol):
-    async def create_user(self, email: str, password_hash: str, role: Role) -> User: ...
+    async def create_user(
+        self,
+        email: str,
+        password_hash: str,
+        role: Role,
+        audience: Audience,
+        guardian_email: str | None,
+    ) -> User: ...
     async def get_user_by_email(self, email: str) -> User | None: ...
     async def get_user_by_id(self, user_id: UUID) -> User | None: ...
     async def list_users(self) -> list[User]: ...
@@ -29,8 +36,13 @@ class IdentityRepository(Protocol):
 
 def _user(record: asyncpg.Record) -> User:
     return User(
-        id=record["id"], email=record["email"], password_hash=record["password_hash"],
-        role=Role(record["role"]), created_at=record["created_at"]
+        id=record["id"],
+        email=record["email"],
+        password_hash=record["password_hash"],
+        role=Role(record["role"]),
+        audience=Audience(record["audience"]),
+        guardian_email=record["guardian_email"],
+        created_at=record["created_at"],
     )
 
 
@@ -41,13 +53,26 @@ class PostgresIdentityRepository:
     async def _connect(self) -> asyncpg.Connection:
         return await asyncpg.connect(self._url)
 
-    async def create_user(self, email: str, password_hash: str, role: Role) -> User:
+    async def create_user(
+        self,
+        email: str,
+        password_hash: str,
+        role: Role,
+        audience: Audience,
+        guardian_email: str | None,
+    ) -> User:
         connection = await self._connect()
         try:
             record = await connection.fetchrow(
-                "INSERT INTO users (id,email,password_hash,role) VALUES ($1,$2,$3,$4) "
-                "RETURNING id,email,password_hash,role,created_at",
-                uuid4(), email, password_hash, role.value,
+                "INSERT INTO users (id,email,password_hash,role,audience,guardian_email) "
+                "VALUES ($1,$2,$3,$4,$5,$6) "
+                "RETURNING id,email,password_hash,role,audience,guardian_email,created_at",
+                uuid4(),
+                email,
+                password_hash,
+                role.value,
+                audience.value,
+                guardian_email,
             )
         except asyncpg.UniqueViolationError as error:
             raise DuplicateEmailError from error
@@ -88,7 +113,10 @@ class PostgresIdentityRepository:
             await connection.execute(
                 "INSERT INTO refresh_tokens (id,user_id,token_hash,expires_at) "
                 "VALUES ($1,$2,$3,$4)",
-                token_id, user_id, token_hash, expires_at,
+                token_id,
+                user_id,
+                token_hash,
+                expires_at,
             )
         finally:
             await connection.close()
@@ -98,7 +126,9 @@ class PostgresIdentityRepository:
         try:
             result = await connection.execute(
                 "UPDATE refresh_tokens SET revoked_at=now() WHERE id=$1 AND token_hash=$2 "
-                "AND revoked_at IS NULL AND expires_at>now()", token_id, token_hash,
+                "AND revoked_at IS NULL AND expires_at>now()",
+                token_id,
+                token_hash,
             )
             return result == "UPDATE 1"
         finally:
@@ -118,7 +148,10 @@ class PostgresIdentityRepository:
                 await connection.execute(
                     "INSERT INTO password_reset_tokens (id,user_id,token_hash,expires_at) "
                     "VALUES ($1,$2,$3,$4)",
-                    uuid4(), user_id, token_hash, expires_at,
+                    uuid4(),
+                    user_id,
+                    token_hash,
+                    expires_at,
                 )
         finally:
             await connection.close()
@@ -129,7 +162,8 @@ class PostgresIdentityRepository:
             async with connection.transaction():
                 user_id = await connection.fetchval(
                     "UPDATE password_reset_tokens SET used_at=now() WHERE token_hash=$1 "
-                    "AND used_at IS NULL AND expires_at>now() RETURNING user_id", token_hash,
+                    "AND used_at IS NULL AND expires_at>now() RETURNING user_id",
+                    token_hash,
                 )
                 if user_id is None:
                     return False
