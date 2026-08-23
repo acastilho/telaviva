@@ -11,6 +11,7 @@ type StoredSession = {
 
 const SESSION_KEY = 'tv_session_v1'
 const configuredApiBase = (import.meta.env.VITE_API_URL as string | undefined)?.trim().replace(/\/$/, '') ?? ''
+const configuredSocketBase = (import.meta.env.VITE_LIVE_SOCKET_URL as string | undefined)?.trim().replace(/\/$/, '') ?? ''
 const configuredStreamId = (import.meta.env.VITE_HOMOLOG_STREAM_ID as string | undefined)?.trim() ?? ''
 const configuredSocketPath = (import.meta.env.VITE_HOMOLOG_SOCKET_PATH as string | undefined)?.trim() ?? ''
 
@@ -26,11 +27,11 @@ function readAccessToken(): string | null {
   }
 }
 
-function websocketBase(apiBase: string): string {
-  if (!apiBase) return ''
-  if (apiBase.startsWith('https://')) return `wss://${apiBase.slice('https://'.length)}`
-  if (apiBase.startsWith('http://')) return `ws://${apiBase.slice('http://'.length)}`
-  if (apiBase.startsWith('wss://') || apiBase.startsWith('ws://')) return apiBase
+function websocketBase(source: string): string {
+  if (!source) return ''
+  if (source.startsWith('https://')) return `wss://${source.slice('https://'.length)}`
+  if (source.startsWith('http://')) return `ws://${source.slice('http://'.length)}`
+  if (source.startsWith('wss://') || source.startsWith('ws://')) return source
   return ''
 }
 
@@ -40,15 +41,16 @@ function normalizePath(path: string): string {
 }
 
 export function homologationLiveConfiguration() {
+  const source = configuredSocketBase || configuredApiBase
   const socketPath = configuredSocketPath
     ? normalizePath(configuredSocketPath)
     : configuredStreamId
       ? `/streams/${encodeURIComponent(configuredStreamId)}/live`
       : ''
   return {
-    apiBase: configuredApiBase,
+    socketBase: source,
     socketPath,
-    enabled: Boolean(configuredApiBase && socketPath),
+    enabled: Boolean(source && socketPath),
   }
 }
 
@@ -89,9 +91,9 @@ export class LiveSocketClient {
   }
 
   private open(reconnecting: boolean) {
-    const { apiBase, socketPath, enabled } = homologationLiveConfiguration()
+    const { socketBase, socketPath, enabled } = homologationLiveConfiguration()
     const token = readAccessToken()
-    const base = websocketBase(apiBase)
+    const base = websocketBase(socketBase)
 
     if (!enabled || !token || !base) {
       this.onStatus('error')
