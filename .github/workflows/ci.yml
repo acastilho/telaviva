@@ -29,7 +29,7 @@ jobs:
           grep -Eqi "Instituto[[:space:]]+Tela[[:space:]]+Viva" preview/index.html
           grep -qi "Instituto Tela Viva" apps/web/index.html
           grep -qi "Onde o conhecimento" apps/web/src/App.tsx
-          if grep -Eqi "Vercel|Render|Neon|PostgreSQL|FastAPI" preview/index.html; then
+          if grep -Eqi "(^|[^[:alnum:]])(Vercel|Render|Neon|PostgreSQL|FastAPI)([^[:alnum:]]|$)" preview/index.html; then
             echo "Public preview must not expose infrastructure providers or implementation details."
             exit 1
           fi
