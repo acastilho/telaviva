@@ -3,7 +3,7 @@ from uuid import UUID, uuid4
 
 from fastapi.testclient import TestClient
 
-from app.identity.models import Role, User
+from app.identity.models import Audience, Role, User
 from app.identity.repository import DuplicateEmailError
 from app.identity.routes import get_identity_repository, get_recovery_notifier
 from app.identity.security import hash_password, hash_token, verify_password
@@ -16,10 +16,25 @@ class MemoryRepository:
         self.refresh_tokens: dict[UUID, tuple[UUID, str, datetime, bool]] = {}
         self.recovery_tokens: dict[str, tuple[UUID, datetime, bool]] = {}
 
-    async def create_user(self, email: str, password_hash: str, role: Role) -> User:
+    async def create_user(
+        self,
+        email: str,
+        password_hash: str,
+        role: Role,
+        audience: Audience,
+        guardian_email: str | None,
+    ) -> User:
         if any(user.email == email for user in self.users.values()):
             raise DuplicateEmailError
-        user = User(uuid4(), email, password_hash, role, datetime.now(UTC))
+        user = User(
+            uuid4(),
+            email,
+            password_hash,
+            role,
+            audience,
+            guardian_email,
+            datetime.now(UTC),
+        )
         self.users[user.id] = user
         return user
 
@@ -59,7 +74,15 @@ class MemoryRepository:
         if value is None or value[2] or value[1] <= datetime.now(UTC):
             return False
         user = self.users[value[0]]
-        self.users[user.id] = User(user.id, user.email, password_hash, user.role, user.created_at)
+        self.users[user.id] = User(
+            user.id,
+            user.email,
+            password_hash,
+            user.role,
+            user.audience,
+            user.guardian_email,
+            user.created_at,
+        )
         self.recovery_tokens[token_hash_value] = (*value[:2], True)
         for token_id, refresh in list(self.refresh_tokens.items()):
             if refresh[0] == user.id:
@@ -95,7 +118,10 @@ def teardown_function() -> None:
 def register_and_login(
     email: str = "viewer@example.com", password: str = "strong-password-123"
 ) -> dict[str, str | int]:
-    response = client.post("/auth/register", json={"email": email, "password": password})
+    response = client.post(
+        "/auth/register",
+        json={"email": email, "password": password, "audience": "ADULT"},
+    )
     assert response.status_code == 201
     response = client.post("/auth/login", json={"email": email, "password": password})
     assert response.status_code == 200
@@ -104,19 +130,56 @@ def register_and_login(
 
 def test_register_normalizes_email_hashes_password_and_prevents_duplicates() -> None:
     response = client.post(
-        "/auth/register", json={"email": "Person@Example.COM", "password": "strong-password-123"}
+        "/auth/register",
+        json={"email": "Person@Example.COM", "password": "strong-password-123", "audience": "TEEN"},
     )
     assert response.status_code == 201
     assert response.json()["email"] == "person@example.com"
     assert response.json()["role"] == "VIEWER"
+    assert response.json()["audience"] == "TEEN"
+    assert "guardian_email" not in response.json()
     user = next(iter(repository.users.values()))
     assert user.password_hash != "strong-password-123"
     assert verify_password(user.password_hash, "strong-password-123")
 
     duplicate = client.post(
-        "/auth/register", json={"email": "person@example.com", "password": "another-password-123"}
+        "/auth/register",
+        json={"email": "person@example.com", "password": "another-password-123"},
     )
     assert duplicate.status_code == 409
+
+
+def test_child_registration_requires_a_distinct_guardian() -> None:
+    missing = client.post(
+        "/auth/register",
+        json={"email": "child@example.com", "password": "strong-password-123", "audience": "CHILD"},
+    )
+    assert missing.status_code == 422
+
+    same = client.post(
+        "/auth/register",
+        json={
+            "email": "child@example.com",
+            "password": "strong-password-123",
+            "audience": "CHILD",
+            "guardian_email": "child@example.com",
+        },
+    )
+    assert same.status_code == 422
+
+    created = client.post(
+        "/auth/register",
+        json={
+            "email": "child@example.com",
+            "password": "strong-password-123",
+            "audience": "CHILD",
+            "guardian_email": "guardian@example.com",
+        },
+    )
+    assert created.status_code == 201
+    user = next(iter(repository.users.values()))
+    assert user.audience is Audience.CHILD
+    assert user.guardian_email == "guardian@example.com"
 
 
 def test_registration_validation_and_invalid_login() -> None:
@@ -137,6 +200,7 @@ def test_access_token_protects_me_and_refresh_rotates_once() -> None:
     me = client.get("/auth/me", headers={"Authorization": f"Bearer {access}"})
     assert me.status_code == 200
     assert me.json()["email"] == "viewer@example.com"
+    assert me.json()["audience"] == "ADULT"
 
     rotated = client.post("/auth/refresh", json={"refresh_token": refresh})
     assert rotated.status_code == 200
@@ -163,6 +227,8 @@ def test_rbac_denies_viewer_and_allows_admin() -> None:
         "admin@example.com",
         hash_password("admin-password-123"),
         Role.ADMIN,
+        Audience.ADULT,
+        None,
         datetime.now(UTC),
     )
     repository.users[admin.id] = admin
