@@ -88,15 +88,19 @@ class MemoryPaths:
 
 
 repository = MemoryPaths()
-app.dependency_overrides[get_learning_path_repository] = lambda: repository
-app.dependency_overrides[get_current_user] = lambda: current_user
 client = TestClient(app)
 
 
 def setup_function() -> None:
-    global current_user
+    global current_user, repository
     current_user = creator
-    repository.paths.clear()
+    repository = MemoryPaths()
+    app.dependency_overrides[get_learning_path_repository] = lambda: repository
+    app.dependency_overrides[get_current_user] = lambda: current_user
+
+
+def teardown_function() -> None:
+    app.dependency_overrides.clear()
 
 
 def create_path() -> dict[str, object]:
