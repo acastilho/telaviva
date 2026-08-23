@@ -21,7 +21,9 @@ export function createLiveRoom(
     `live-${normalized}`,
     {
       onJoinError: ({ error }) => {
-        const message = error instanceof Error ? error.message : 'Não foi possível estabelecer a conexão ao vivo.'
+        const message = typeof error === 'string' && error.trim()
+          ? error
+          : 'Não foi possível estabelecer a conexão ao vivo.'
         onJoinError?.(message)
       },
     },
@@ -45,13 +47,10 @@ export function unpublishStream(room: BroadcastRoom, stream: MediaStream) {
 }
 
 export function createRoomId() {
-  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
-    return crypto.randomUUID().replaceAll('-', '')
-  }
+  const randomId = globalThis.crypto?.randomUUID?.()
+  if (randomId) return randomId.replaceAll('-', '')
 
-  const bytes = new Uint8Array(16)
-  crypto.getRandomValues(bytes)
-  return Array.from(bytes, (value) => value.toString(16).padStart(2, '0')).join('')
+  return Array.from({ length: 32 }, () => Math.floor(Math.random() * 16).toString(16)).join('')
 }
 
 export function createViewerUrl(roomId: string) {
