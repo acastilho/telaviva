@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { App } from './App'
 
 vi.mock('./peerBroadcast', async () => {
@@ -34,10 +34,11 @@ describe('Instituto Tela Viva', () => {
     expect(screen.getByRole('heading', { name: 'Profissionais ao vivo' })).toBeInTheDocument()
   })
 
-  it('não preenche o catálogo com aulas, criadores ou audiência fictícios', () => {
+  it('falha de forma fechada quando a API de aulas não está configurada', () => {
     render(<App />)
 
-    expect(screen.getAllByText('Nenhuma aula verificada foi carregada').length).toBeGreaterThan(0)
+    expect(screen.getByText('Não foi possível consultar as aulas')).toBeInTheDocument()
+    expect(screen.getAllByText('API de aulas não configurada.').length).toBeGreaterThan(0)
     expect(screen.getByText('Nenhum criador verificado foi carregado.')).toBeInTheDocument()
     expect(screen.getByText('Nenhum novo criador verificado foi carregado.')).toBeInTheDocument()
     expect(screen.queryByText('Marina Luz')).not.toBeInTheDocument()
@@ -109,54 +110,31 @@ describe('Áreas operacionais sem dados fictícios', () => {
 })
 
 describe('Estúdio de transmissão', () => {
-  const makeStream = (kind: 'video' | 'audio') => {
-    const track = { enabled: true, stop: vi.fn(), addEventListener: vi.fn() }
-    return {
-      stream: {
-        getTracks: () => [track],
-        getVideoTracks: () => kind === 'video' ? [track] : [],
-        getAudioTracks: () => kind === 'audio' ? [track] : [],
-      } as unknown as MediaStream,
-      track,
-    }
-  }
-
   beforeEach(() => {
     window.localStorage.clear()
     window.sessionStorage.clear()
-    const display = makeStream('video')
-    const audio = makeStream('audio')
-    const camera = makeStream('video')
     Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: {
-      getDisplayMedia: vi.fn().mockResolvedValue(display.stream),
-      getUserMedia: vi.fn().mockImplementation((constraints: MediaStreamConstraints) =>
-        Promise.resolve(constraints.video ? camera.stream : audio.stream)),
+      getDisplayMedia: vi.fn(),
+      getUserMedia: vi.fn(),
     } })
-    Object.defineProperty(HTMLMediaElement.prototype, 'srcObject', { configurable: true, writable: true })
-    Object.defineProperty(HTMLMediaElement.prototype, 'play', { configurable: true, value: vi.fn().mockResolvedValue(undefined) })
   })
 
-  it('solicita autorização nativa, mostra preview e inicia a live', async () => {
+  it('não abre o estúdio sem uma fonte oficial de aulas', () => {
     render(<App />)
     fireEvent.click(screen.getByRole('button', { name: 'Criar live' }))
 
-    expect(screen.getByRole('dialog', { name: 'Prepare sua live' })).toBeInTheDocument()
-    expect(screen.getByText(/não acessa nem controla seu computador/i)).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Ver preview' }))
-
-    await waitFor(() => expect(navigator.mediaDevices.getDisplayMedia).toHaveBeenCalledWith(expect.objectContaining({ video: true, audio: false })))
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Iniciar transmissão' })).toBeEnabled())
-    fireEvent.click(screen.getByRole('button', { name: 'Iniciar transmissão' }))
-    expect(screen.getByText('● AO VIVO')).toBeInTheDocument()
+    expect(screen.getByText('A API de aulas precisa estar configurada para iniciar uma transmissão.')).toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: 'Prepare sua live' })).not.toBeInTheDocument()
+    expect(navigator.mediaDevices.getDisplayMedia).not.toHaveBeenCalled()
+    expect(navigator.mediaDevices.getUserMedia).not.toHaveBeenCalled()
   })
 
-  it('liga a câmera e mostra a prévia no modo somente câmera', async () => {
+  it('não inventa uma aula ativa para liberar câmera ou compartilhamento', () => {
     render(<App />)
     fireEvent.click(screen.getByRole('button', { name: 'Criar live' }))
-    fireEvent.click(screen.getByRole('radio', { name: /Somente câmera/ }))
 
-    await waitFor(() => expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledWith(expect.objectContaining({ video: expect.any(Object), audio: false })))
-    await waitFor(() => expect(screen.getByLabelText('Prévia da câmera')).toBeInTheDocument())
-    expect(screen.getByText('Câmera pronta')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Ver preview' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Iniciar transmissão' })).not.toBeInTheDocument()
+    expect(screen.queryByText('● AO VIVO')).not.toBeInTheDocument()
   })
 })
