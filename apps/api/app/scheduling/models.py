@@ -38,6 +38,9 @@ class ScheduledStream:
     price: Decimal
     access_type: AccessType
     created_at: datetime
+    live_started_at: datetime | None = None
+    live_ended_at: datetime | None = None
+    live_room_id: str | None = None
 
 
 @dataclass(frozen=True)
