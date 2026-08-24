@@ -6,9 +6,10 @@ import { CreatorDashboard } from './CreatorDashboard'
 import { LiveRoom } from './LiveRoom'
 import { LiveStudio } from './LiveStudio'
 import { RecordingLibrary } from './RecordingLibrary'
+import { schedulingClient, usesRemoteSchedulingApi, type ScheduledStream } from './scheduling'
 
 type Session = {
-  id: number
+  id: number | string
   title: string
   creator: string
   profession: string
@@ -24,11 +25,12 @@ type Session = {
   initials: string
   objective: string
   audiences: Audience[]
+  liveRoomId?: string
 }
 
 type AuthMode = 'login' | 'register' | 'recover'
 
-const sessions: Session[] = [
+const demoSessions: Session[] = [
   { id: 1, title: 'Identidade visual do zero', creator: 'Marina Luz', profession: 'Designer', category: 'Criatividade', tool: 'Figma', language: 'Português', level: 'Intermediário', price: 0, status: 'Ao vivo', schedule: 'Agora', viewers: '1,2 mil', accent: 'coral', initials: 'ML', objective: 'Acompanhar a criação de uma identidade visual completa, incluindo escolhas, testes e correções.', audiences: ['TEEN', 'ADULT'] },
   { id: 2, title: 'Cerâmica: torneando uma xícara', creator: 'João Barro', profession: 'Ceramista', category: 'Ofícios', tool: 'Torno', language: 'Português', level: 'Iniciante', price: 18, status: 'Ao vivo', schedule: 'Agora', viewers: '842', accent: 'clay', initials: 'JB', objective: 'Observar matéria, gesto e técnica enquanto uma peça nasce no torno.', audiences: ['TEEN', 'ADULT'] },
   { id: 3, title: 'Luz natural em retratos', creator: 'Clara Reis', profession: 'Fotógrafa', category: 'Fotografia', tool: 'Câmera', language: 'Português', level: 'Todos os níveis', price: 0, status: 'Ao vivo', schedule: 'Agora', viewers: '618', accent: 'blue', initials: 'CR', objective: 'Entender luz, sombra e enquadramento observando decisões reais durante uma sessão.', audiences: ['TEEN', 'ADULT'] },
@@ -61,6 +63,44 @@ const audienceCopy: Record<Audience, { eyebrow: string; title: string; descripti
   CHILD: { eyebrow: 'CRIANÇAS', title: 'Descobrir brincando', description: 'Experiências curadas, perguntas moderadas e linguagem simples. A conversa livre fica protegida.' },
   TEEN: { eyebrow: 'ADOLESCENTES', title: 'Aprender fazendo', description: 'Mais autonomia para explorar projetos reais, com interação moderada e proteção adequada à idade.' },
   ADULT: { eyebrow: 'ADULTOS', title: 'Acompanhar o processo', description: 'Acesso completo a aulas, profissionais, trilhas, comunidade e experiências de aprendizado vivo.' },
+}
+
+function streamAudiences(description: string): Audience[] {
+  const normalized = description.toLocaleLowerCase('pt-BR')
+  if (normalized.includes('público: crianças')) return ['CHILD']
+  if (normalized.includes('público: adolescentes e adultos')) return ['TEEN', 'ADULT']
+  if (normalized.includes('público: adolescentes')) return ['TEEN']
+  return ['ADULT']
+}
+
+function streamLevel(level: ScheduledStream['level']): string {
+  if (level === 'BEGINNER') return 'Iniciante'
+  if (level === 'INTERMEDIATE') return 'Intermediário'
+  if (level === 'ADVANCED') return 'Avançado'
+  return 'Todos os níveis'
+}
+
+function systemSession(stream: ScheduledStream, live: boolean): Session {
+  const startsAt = new Date(stream.starts_at)
+  return {
+    id: stream.id,
+    title: stream.title,
+    creator: 'Criador Tela Viva',
+    profession: 'Instrutor',
+    category: 'Educação',
+    tool: 'Ao vivo',
+    language: 'Português',
+    level: streamLevel(stream.level),
+    price: Number(stream.price),
+    status: live ? 'Ao vivo' : 'Agendado',
+    schedule: live ? 'Agora' : startsAt.toLocaleString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }),
+    viewers: live ? 'ao vivo' : undefined,
+    accent: live ? 'green' : 'blue',
+    initials: 'TV',
+    objective: stream.objective,
+    audiences: streamAudiences(stream.description),
+    liveRoomId: live ? stream.live_room_id ?? undefined : undefined,
+  }
 }
 
 function Avatar({ initials, accent, large = false }: { initials: string; accent: string; large?: boolean }) {
@@ -126,13 +166,17 @@ export function App() {
   const [authError, setAuthError] = useState('')
   const [authMessage, setAuthMessage] = useState('')
   const [authLoading, setAuthLoading] = useState(false)
-  const [pendingSessionId, setPendingSessionId] = useState<number | null>(null)
+  const [pendingSessionId, setPendingSessionId] = useState<Session['id'] | null>(null)
   const [activeLive, setActiveLive] = useState<Session | null>(null)
   const [studioOpen, setStudioOpen] = useState(false)
+  const [selectedStudioStreamId, setSelectedStudioStreamId] = useState<string | undefined>()
   const [libraryOpen, setLibraryOpen] = useState(false)
   const [dashboardOpen, setDashboardOpen] = useState(false)
   const [adminOpen, setAdminOpen] = useState(false)
   const [toast, setToast] = useState('')
+  const [systemSessions, setSystemSessions] = useState<Session[]>([])
+  const [catalogLoading, setCatalogLoading] = useState(usesRemoteSchedulingApi)
+  const [catalogError, setCatalogError] = useState('')
 
   useEffect(() => {
     let active = true
@@ -146,6 +190,41 @@ export function App() {
   }, [])
 
   useEffect(() => {
+    if (!usesRemoteSchedulingApi) return
+    let mounted = true
+
+    const loadCatalog = async () => {
+      try {
+        const [activeStreams, upcomingStreams] = await Promise.all([
+          schedulingClient.listActive(),
+          schedulingClient.listUpcoming(),
+        ])
+        if (!mounted) return
+        const activeIds = new Set(activeStreams.map((stream) => stream.id))
+        setSystemSessions([
+          ...activeStreams.map((stream) => systemSession(stream, true)),
+          ...upcomingStreams.filter((stream) => !activeIds.has(stream.id)).map((stream) => systemSession(stream, false)),
+        ])
+        setCatalogError('')
+      } catch (error) {
+        if (mounted) setCatalogError(error instanceof Error ? error.message : 'Não foi possível carregar as aulas do sistema.')
+      } finally {
+        if (mounted) setCatalogLoading(false)
+      }
+    }
+
+    void loadCatalog()
+    const timer = window.setInterval(() => void loadCatalog(), 12_000)
+    const handleFocus = () => void loadCatalog()
+    window.addEventListener('focus', handleFocus)
+    return () => {
+      mounted = false
+      window.clearInterval(timer)
+      window.removeEventListener('focus', handleFocus)
+    }
+  }, [])
+
+  useEffect(() => {
     window.localStorage.setItem('tv_audience', audience)
     setAuthAudience(audience)
   }, [audience])
@@ -156,7 +235,8 @@ export function App() {
     return () => window.clearTimeout(timer)
   }, [toast])
 
-  const filtered = useMemo(() => sessions.filter((session) => {
+  const catalogSessions = usesRemoteSchedulingApi ? systemSessions : demoSessions
+  const filtered = useMemo(() => catalogSessions.filter((session) => {
     const term = query.toLocaleLowerCase('pt-BR')
     const matchesQuery = [session.title, session.creator, session.profession, session.category, session.tool].some((value) => value.toLocaleLowerCase('pt-BR').includes(term))
     return session.audiences.includes(audience) && matchesQuery &&
@@ -167,7 +247,7 @@ export function App() {
       (level === 'Todos' || session.level === level) &&
       (payment === 'Todos' || (payment === 'Gratuito' ? session.price === 0 : session.price > 0)) &&
       (timing === 'Todos' || session.status === timing) && session.price <= maxPrice
-  }), [audience, category, language, level, maxPrice, payment, profession, query, timing, tool])
+  }), [audience, catalogSessions, category, language, level, maxPrice, payment, profession, query, timing, tool])
 
   const liveSessions = filtered.filter((session) => session.status === 'Ao vivo')
   const upcoming = filtered.filter((session) => session.status === 'Agendado')
@@ -179,13 +259,29 @@ export function App() {
     setLevel('Todos'); setPayment('Todos'); setTiming('Todos'); setMaxPrice(50)
   }
 
-  const openAuth = (mode: AuthMode = 'login', pendingId: number | null = null) => {
+  const openAuth = (mode: AuthMode = 'login', pendingId: Session['id'] | null = null) => {
     setAuthMode(mode)
     setPendingSessionId(pendingId)
     setAuthError('')
     setAuthMessage('')
     setAuthPassword('')
     setLoginOpen(true)
+  }
+
+  const openVerifiedLive = (session: Session) => {
+    if (!usesRemoteSchedulingApi) {
+      setActiveLive(session)
+      return
+    }
+    if (!session.liveRoomId) {
+      setToast('Esta aula ainda não possui uma transmissão ativa no sistema.')
+      return
+    }
+    const url = new URL(window.location.href)
+    url.search = ''
+    url.hash = ''
+    url.searchParams.set('live', session.liveRoomId)
+    window.location.assign(url.toString())
   }
 
   const watchSession = (session: Session) => {
@@ -201,7 +297,7 @@ export function App() {
       setToast('Lembrete salvo. Avisaremos quando a aula começar.')
       return
     }
-    setActiveLive(session)
+    openVerifiedLive(session)
   }
 
   const submitAuth = async (event: FormEvent<HTMLFormElement>) => {
@@ -224,9 +320,9 @@ export function App() {
       setAuthEmail('')
       setAuthPassword('')
       setGuardianEmail('')
-      if (pendingSessionId) {
-        const pending = sessions.find((item) => item.id === pendingSessionId)
-        if (pending?.status === 'Ao vivo' && pending.audiences.includes(session.user.audience)) setActiveLive(pending)
+      if (pendingSessionId !== null) {
+        const pending = catalogSessions.find((item) => item.id === pendingSessionId)
+        if (pending?.status === 'Ao vivo' && pending.audiences.includes(session.user.audience)) openVerifiedLive(pending)
       }
       setPendingSessionId(null)
       setToast('Sessão iniciada com segurança.')
@@ -241,6 +337,7 @@ export function App() {
     await authClient.logout()
     setAuthSession(null)
     setStudioOpen(false)
+    setSelectedStudioStreamId(undefined)
     setDashboardOpen(false)
     setAdminOpen(false)
     setToast('Você saiu da sua conta.')
@@ -275,13 +372,26 @@ export function App() {
       setToast('Somente criadores autorizados podem iniciar transmissões.')
       return
     }
+    if (usesRemoteSchedulingApi) {
+      setToast('Escolha uma aula cadastrada e toque em Transmitir.')
+      setDashboardOpen(true)
+      return
+    }
     setStudioOpen(true)
   }
 
   if (activeLive && authSession) return <LiveRoom session={activeLive} audience={authSession.user.audience} user={authSession.user} onClose={() => setActiveLive(null)} />
-  if (studioOpen) return <LiveStudio onClose={() => setStudioOpen(false)} />
+  if (studioOpen) return <LiveStudio streamId={selectedStudioStreamId} accessToken={authSession?.accessToken} onClose={() => { setStudioOpen(false); setSelectedStudioStreamId(undefined) }} />
   if (libraryOpen) return <RecordingLibrary onClose={() => setLibraryOpen(false)} />
-  if (dashboardOpen) return <CreatorDashboard onClose={() => setDashboardOpen(false)} onStartLive={() => { setDashboardOpen(false); setStudioOpen(true) }} />
+  if (dashboardOpen) return <CreatorDashboard remoteApi={usesRemoteSchedulingApi} creatorId={authSession?.user.id} accessToken={authSession?.accessToken} onClose={() => setDashboardOpen(false)} onStartLive={(streamId) => {
+    if (usesRemoteSchedulingApi && !streamId) {
+      setToast('Selecione uma aula cadastrada antes de abrir o estúdio.')
+      return
+    }
+    setSelectedStudioStreamId(streamId)
+    setDashboardOpen(false)
+    setStudioOpen(true)
+  }} />
   if (adminOpen) return <AdminDashboard onClose={() => setAdminOpen(false)} />
 
   return (
@@ -317,9 +427,9 @@ export function App() {
           <label className="search"><span aria-hidden="true">⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Busque por tema, profissional ou ferramenta..." /></label>
           <button className={`filter-trigger ${filtersOpen ? 'selected' : ''}`} onClick={() => setFiltersOpen(!filtersOpen)} aria-expanded={filtersOpen} aria-controls="filters"><span>☷</span> Filtros {activeFilterCount > 0 && <b>{activeFilterCount}</b>}</button>
           {filtersOpen && <div className="filters" id="filters">
-            <Filter label="Profissão" value={profession} onChange={setProfession} options={['Todas', 'Designer', 'Ceramista', 'Fotógrafa', 'Ilustradora', 'Chef', 'Tecnóloga', 'Educadora ambiental']} />
-            <Filter label="Categoria" value={category} onChange={setCategory} options={['Todas', 'Natureza', 'Criatividade', 'Tecnologia', 'Fotografia', 'Gastronomia', 'Ofícios', 'Carreira']} />
-            <Filter label="Ferramenta" value={tool} onChange={setTool} options={['Todas', 'Figma', 'Torno', 'Câmera', 'Papel e lápis', 'Forno', 'Microcontrolador', 'Terra e sementes']} />
+            <Filter label="Profissão" value={profession} onChange={setProfession} options={['Todas', 'Designer', 'Ceramista', 'Fotógrafa', 'Ilustradora', 'Chef', 'Tecnóloga', 'Educadora ambiental', 'Instrutor']} />
+            <Filter label="Categoria" value={category} onChange={setCategory} options={['Todas', 'Natureza', 'Criatividade', 'Tecnologia', 'Fotografia', 'Gastronomia', 'Ofícios', 'Carreira', 'Educação']} />
+            <Filter label="Ferramenta" value={tool} onChange={setTool} options={['Todas', 'Figma', 'Torno', 'Câmera', 'Papel e lápis', 'Forno', 'Microcontrolador', 'Terra e sementes', 'Ao vivo']} />
             <Filter label="Idioma" value={language} onChange={setLanguage} options={['Todos', 'Português']} />
             <Filter label="Nível" value={level} onChange={setLevel} options={['Todos', 'Iniciante', 'Intermediário', 'Avançado', 'Todos os níveis']} />
             <Filter label="Preço" value={payment} onChange={setPayment} options={['Todos', 'Gratuito', 'Pago']} />
@@ -331,7 +441,7 @@ export function App() {
 
         <section className="content-section" id="experiencias">
           <SectionHeading eyebrow="ACONTECENDO AGORA" title="Profissionais ao vivo" action="Ver todos" />
-          {liveSessions.length ? <div className="session-grid">{liveSessions.map((session) => <SessionCard key={session.id} session={session} onWatch={() => watchSession(session)} />)}</div> : <EmptyState />}
+          {catalogLoading ? <CatalogState title="Verificando aulas ativas" description="Consultando o sistema para mostrar somente transmissões realmente iniciadas." /> : catalogError ? <CatalogState title="Não foi possível consultar as aulas" description={catalogError} /> : liveSessions.length ? <div className="session-grid">{liveSessions.map((session) => <SessionCard key={session.id} session={session} onWatch={() => watchSession(session)} />)}</div> : <LiveEmptyState />}
         </section>
 
         <section className="principle-section" aria-label="Princípio do Instituto Tela Viva">
@@ -344,7 +454,7 @@ export function App() {
         </section>
 
         <section className="split-sections" id="proximas">
-          <div><SectionHeading eyebrow="PROGRAME-SE" title="Próximas aulas" />{upcoming.length ? <div className="upcoming-list">{upcoming.map((session) => <SessionCard key={session.id} session={session} compact onWatch={() => watchSession(session)} />)}</div> : <EmptyState />}</div>
+          <div><SectionHeading eyebrow="PROGRAME-SE" title="Próximas aulas" />{catalogLoading ? <CatalogState title="Carregando agenda" description="Buscando as próximas aulas cadastradas." /> : upcoming.length ? <div className="upcoming-list">{upcoming.map((session) => <SessionCard key={session.id} session={session} compact onWatch={() => watchSession(session)} />)}</div> : <EmptyState />}</div>
           <div><SectionHeading eyebrow="EM DESTAQUE" title="Criadores populares" />
             <div className="creator-list">{creators.map((creator, index) => <article key={creator.name}><span className="rank">0{index + 1}</span><Avatar {...creator} large /><div><h3>{creator.name} <span className="verified">✓</span></h3><p>{creator.role}</p><small>{creator.followers}</small></div><button aria-label={`Seguir ${creator.name}`} onClick={() => authSession ? setToast(`Agora você segue ${creator.name}.`) : openAuth('login')}>+</button></article>)}</div>
           </div>
@@ -356,7 +466,7 @@ export function App() {
         </section>
 
         <section className="workspace-section" aria-labelledby="workspace-title">
-          <div><p className="eyebrow">FAZER O CONHECIMENTO ACONTECER</p><h2 id="workspace-title">Ferramentas para quem aprende e para quem ensina</h2><p>Biblioteca, estúdio, acompanhamento e operação ficam atrás de sessão autenticada e permissões adequadas. Em homologação, os painéis profissionais podem ser visualizados como demonstração quando a API externa não estiver conectada.</p></div>
+          <div><p className="eyebrow">FAZER O CONHECIMENTO ACONTECER</p><h2 id="workspace-title">Ferramentas para quem aprende e para quem ensina</h2><p>Biblioteca, estúdio, acompanhamento e operação ficam atrás de sessão autenticada e permissões adequadas. Com a API conectada, a transmissão só entra ao vivo depois de uma aula cadastrada ser ativada pelo criador.</p></div>
           <div className="workspace-actions"><button onClick={openLibrary}>Minha biblioteca</button><button onClick={openCreator}>Painel do criador</button><button onClick={openStudio}>Criar live</button><button onClick={openAdmin}>Administração</button></div>
         </section>
       </main>
@@ -390,6 +500,14 @@ function Filter({ label, value, options, onChange }: { label: string; value: str
 
 function SectionHeading({ eyebrow, title, action }: { eyebrow: string; title: string; action?: string }) {
   return <div className="section-heading"><div><p>{eyebrow}</p><h2>{title}</h2></div>{action && <a href="#experiencias">{action} <span>→</span></a>}</div>
+}
+
+function CatalogState({ title, description }: { title: string; description: string }) {
+  return <div className="empty-state"><strong>{title}</strong><p>{description}</p></div>
+}
+
+function LiveEmptyState() {
+  return <div className="empty-state"><strong>Nenhuma aula ao vivo agora</strong><p>Uma aula só aparece aqui depois que o criador inicia a transmissão de uma aula cadastrada.</p></div>
 }
 
 function EmptyState() {
