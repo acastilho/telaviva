@@ -74,8 +74,13 @@ class MemoryCommerceRepository:
             or user_id == creator.id
         )
         return AccessDecision(
-            selected, user_id, granted, "ENTITLED" if granted else "ENTITLEMENT_REQUIRED",
-            uuid4() if (user_id, selected) in self.entitled else None, datetime.now(UTC),
+            stream_id=selected,
+            user_id=user_id,
+            granted=granted,
+            reason="ENTITLED" if granted else "ENTITLEMENT_REQUIRED",
+            entitlement_id=uuid4() if (user_id, selected) in self.entitled else None,
+            checked_at=datetime.now(UTC),
+            live_room_id="room_live_secure" if granted else None,
         )
 
 
@@ -109,7 +114,9 @@ def test_purchase_grants_access_only_after_successful_payment() -> None:
     global current_user
     product = create_class_product()
     current_user = viewer
-    assert client.post(f"/streams/{stream_id}/access").status_code == 403
+    denied = client.post(f"/streams/{stream_id}/access")
+    assert denied.status_code == 403
+    assert "live_room_id" not in denied.json()
     order = client.post("/orders", json={"product_id": product["id"]})
     assert order.status_code == 201
     assert order.json()["amount"] == "39.90"
@@ -127,17 +134,22 @@ def test_purchase_grants_access_only_after_successful_payment() -> None:
     assert access.status_code == 200
     assert access.json()["granted"] is True
     assert access.json()["entitlement_id"] is not None
+    assert access.json()["live_room_id"] == "room_live_secure"
 
 
 def test_private_stream_requires_invitation() -> None:
     global current_user
     repository.access_type = "PRIVATE"
     current_user = viewer
-    assert client.post(f"/streams/{stream_id}/access").status_code == 403
+    denied = client.post(f"/streams/{stream_id}/access")
+    assert denied.status_code == 403
+    assert "live_room_id" not in denied.json()
     current_user = creator
     assert client.put(f"/streams/{stream_id}/invites/{viewer.id}").status_code == 204
     current_user = viewer
-    assert client.post(f"/streams/{stream_id}/access").status_code == 200
+    access = client.post(f"/streams/{stream_id}/access")
+    assert access.status_code == 200
+    assert access.json()["live_room_id"] == "room_live_secure"
 
 
 def test_commerce_authorization_and_payment_validation() -> None:
