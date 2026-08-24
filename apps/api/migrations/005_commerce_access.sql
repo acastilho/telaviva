@@ -1,5 +1,6 @@
 ALTER TABLE scheduled_streams DROP CONSTRAINT IF EXISTS scheduled_streams_access_type_check;
 ALTER TABLE scheduled_streams DROP CONSTRAINT IF EXISTS scheduled_streams_check;
+ALTER TABLE scheduled_streams DROP CONSTRAINT IF EXISTS scheduled_streams_price_access_check;
 UPDATE scheduled_streams SET access_type = CASE
     WHEN access_type = 'FOLLOWERS' THEN 'PRIVATE'
     WHEN price > 0 THEN 'PAID'
