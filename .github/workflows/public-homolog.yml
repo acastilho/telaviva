@@ -1,0 +1,125 @@
+name: Homologação Pública
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/web/**'
+      - '.github/workflows/public-homolog.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: telaviva-public-homolog
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    name: Validar e publicar build público
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Instalar dependências
+        working-directory: apps/web
+        run: npm install --no-audit --no-fund
+
+      - name: Validar frontend
+        working-directory: apps/web
+        run: |
+          npm run typecheck
+          npm run test -- --run
+          npm run build
+
+      - name: Adaptar somente os caminhos de hospedagem
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          dist = Path('apps/web/dist')
+
+          index = dist / 'index.html'
+          text = index.read_text(encoding='utf-8')
+          text = text.replace('/telaviva/assets/', './assets/')
+          index.write_text(text, encoding='utf-8')
+
+          for js in (dist / 'assets').glob('*.js'):
+              text = js.read_text(encoding='utf-8')
+              text = text.replace('navigator.serviceWorker.register("/telaviva/sw.js")', 'navigator.serviceWorker.register("./sw.js")')
+              text = text.replace("navigator.serviceWorker.register('/telaviva/sw.js')", "navigator.serviceWorker.register('./sw.js')")
+              js.write_text(text, encoding='utf-8')
+
+          manifest_path = dist / 'manifest.webmanifest'
+          manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
+          manifest['start_url'] = './'
+          manifest['scope'] = './'
+          manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+
+          sw = dist / 'sw.js'
+          text = sw.read_text(encoding='utf-8')
+          text = text.replace("['/', '/favicon.svg', '/manifest.webmanifest']", "['./', './favicon.svg', './manifest.webmanifest']")
+          text = text.replace("cache.put('/', copy)", "cache.put('./', copy)")
+          text = text.replace("caches.match('/')", "caches.match('./')")
+          sw.write_text(text, encoding='utf-8')
+
+          (dist / '.nojekyll').write_text('', encoding='utf-8')
+          (dist / 'BUILD_INFO.json').write_text(
+              json.dumps({
+                  'source_sha': os.environ['SOURCE_SHA'],
+                  'built_at': datetime.now(timezone.utc).isoformat(),
+                  'source': 'GitHub Actions validated build',
+              }, indent=2) + '\n',
+              encoding='utf-8',
+          )
+          PY
+
+      - name: Verificar que o pacote não depende do caminho antigo
+        shell: bash
+        run: |
+          ! grep -R --exclude='BUILD_INFO.json' '/telaviva/assets/' apps/web/dist
+          grep -q 'Instituto Tela Viva' apps/web/dist/index.html
+          test -s apps/web/dist/assets/*.js
+          test -s apps/web/dist/assets/*.css
+
+      - name: Publicar branch homolog-public
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          cd apps/web/dist
+          git init
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git checkout -b homolog-public
+          git add -A
+          git commit -m "deploy: homologação pública ${GITHUB_SHA}"
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push --force origin homolog-public
+
+      - name: Validar endpoint público
+        shell: bash
+        run: |
+          URL="https://raw.githack.com/${GITHUB_REPOSITORY}/homolog-public/index.html"
+          for attempt in 1 2 3 4 5 6 7 8 9 10; do
+            if curl --fail --silent --show-error --location "$URL" | grep -q 'Instituto Tela Viva'; then
+              echo "Homologação pública disponível em $URL"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "Endpoint público ainda não propagou após 50 segundos."
+          exit 1
