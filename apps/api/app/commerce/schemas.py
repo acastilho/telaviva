@@ -103,3 +103,5 @@ class AccessResponse(BaseModel):
     reason: str
     entitlement_id: UUID | None
     checked_at: datetime
+    # Authorization-sensitive: populated only after the authenticated access decision.
+    live_room_id: str | None = None
