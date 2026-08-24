@@ -12,11 +12,9 @@ type Recording = {
   initials: string
 }
 
-const recordings: Recording[] = [
-  { id: 1, title: 'Identidade visual do zero', creator: 'Marina Luz', source: 'Compra avulsa', duration: '1h 18min', progress: 42, accent: 'coral', initials: 'ML' },
-  { id: 2, title: 'Luz natural em retratos', creator: 'Clara Reis', source: 'Assinatura', duration: '52min', progress: 0, accent: 'blue', initials: 'CR' },
-  { id: 3, title: 'Mixando vocais em casa', creator: 'Nina Alves', source: 'Assinatura', duration: '1h 34min', progress: 100, accent: 'green', initials: 'NA' },
-]
+// A biblioteca não contém gravações semeadas. Somente itens vindos da fonte
+// oficial devem ser atribuídos a esta coleção.
+const recordings: Recording[] = []
 
 export function RecordingLibrary({ onClose }: { onClose: () => void }) {
   const [tab, setTab] = useState<'Todas' | 'Compradas' | 'Assinaturas' | 'Histórico'>('Todas')
@@ -28,24 +26,30 @@ export function RecordingLibrary({ onClose }: { onClose: () => void }) {
 
   if (playing) return <Replay recording={playing} onClose={() => setPlaying(null)} />
 
+  const inProgress = recordings.filter((item) => item.progress > 0 && item.progress < 100)
+
   return <div className="library-shell">
     <header>
       <button className="brand brand-button institute-brand-link" onClick={onClose} aria-label="Voltar ao Instituto Tela Viva"><BrandMark /></button>
       <nav aria-label="Navegação da biblioteca"><button onClick={onClose}>Descobrir</button><button className="active">Minha biblioteca</button></nav>
     </header>
     <main className="library-main">
-      <p className="eyebrow">SEU ESPAÇO</p><h1>Minhas aulas</h1><p className="library-intro">Retome de onde parou ou reveja suas aulas quando quiser.</p>
+      <p className="eyebrow">SEU ESPAÇO</p><h1>Minhas aulas</h1><p className="library-intro">Somente gravações confirmadas pela biblioteca da sua conta aparecem aqui.</p>
       <section aria-labelledby="continue-title">
         <div className="section-heading"><div><p>CONTINUAR ASSISTINDO</p><h2 id="continue-title">De onde você parou</h2></div></div>
-        <div className="recording-grid">{recordings.filter((item) => item.progress > 0 && item.progress < 100).map((item) => <RecordingCard key={item.id} item={item} onPlay={() => setPlaying(item)} />)}</div>
+        {inProgress.length ? <div className="recording-grid">{inProgress.map((item) => <RecordingCard key={item.id} item={item} onPlay={() => setPlaying(item)} />)}</div> : <LibraryEmptyState text="Nenhum progresso verificado foi carregado." />}
       </section>
       <section className="library-all" aria-labelledby="all-title">
         <div className="section-heading"><div><p>SUA COLEÇÃO</p><h2 id="all-title">Todas as gravações</h2></div></div>
         <div className="library-tabs" role="tablist">{(['Todas', 'Compradas', 'Assinaturas', 'Histórico'] as const).map((name) => <button role="tab" aria-selected={tab === name} key={name} onClick={() => setTab(name)}>{name}</button>)}</div>
-        <div className="recording-grid">{filtered.map((item) => <RecordingCard key={item.id} item={item} onPlay={() => setPlaying(item)} />)}</div>
+        {filtered.length ? <div className="recording-grid">{filtered.map((item) => <RecordingCard key={item.id} item={item} onPlay={() => setPlaying(item)} />)}</div> : <LibraryEmptyState text="Nenhuma gravação verificada foi carregada para esta conta." />}
       </section>
     </main>
   </div>
+}
+
+function LibraryEmptyState({ text }: { text: string }) {
+  return <div className="empty-state" role="status"><strong>{text}</strong><p>A interface não usa gravações ou progresso fictícios para preencher este espaço.</p></div>
 }
 
 function RecordingCard({ item, onPlay }: { item: Recording; onPlay: () => void }) {
@@ -63,7 +67,7 @@ function Replay({ recording, onClose }: { recording: Recording; onClose: () => v
       <div className={`replay-video ${recording.accent}`} role="region" aria-label={`Player de ${recording.title}`}><span>{recording.initials}</span><button aria-label="Reproduzir" onClick={() => setProgress(Math.min(100, progress + 10))}>▶</button></div>
       <div className="replay-progress"><i style={{ width: `${progress}%` }} /></div>
       <p className="eyebrow">REPLAY · {recording.source}</p><h1>{recording.title}</h1><p>com {recording.creator} · {recording.duration}</p>
-      <p className="resume-note">Progresso salvo automaticamente · {progress}% assistido</p>
+      <p className="resume-note">Progresso desta sessão: {progress}%</p>
     </main>
   </div>
 }

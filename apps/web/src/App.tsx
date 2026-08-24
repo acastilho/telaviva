@@ -26,35 +26,26 @@ type Session = {
   audiences: Audience[]
 }
 
+type CreatorSummary = {
+  name: string
+  role: string
+  followers?: string
+  initials: string
+  accent: string
+}
+
 type AuthMode = 'login' | 'register' | 'recover'
 
-const sessions: Session[] = [
-  { id: 1, title: 'Identidade visual do zero', creator: 'Marina Luz', profession: 'Designer', category: 'Criatividade', tool: 'Figma', language: 'Português', level: 'Intermediário', price: 0, status: 'Ao vivo', schedule: 'Agora', viewers: '1,2 mil', accent: 'coral', initials: 'ML', objective: 'Acompanhar a criação de uma identidade visual completa, incluindo escolhas, testes e correções.', audiences: ['TEEN', 'ADULT'] },
-  { id: 2, title: 'Cerâmica: torneando uma xícara', creator: 'João Barro', profession: 'Ceramista', category: 'Ofícios', tool: 'Torno', language: 'Português', level: 'Iniciante', price: 18, status: 'Ao vivo', schedule: 'Agora', viewers: '842', accent: 'clay', initials: 'JB', objective: 'Observar matéria, gesto e técnica enquanto uma peça nasce no torno.', audiences: ['TEEN', 'ADULT'] },
-  { id: 3, title: 'Luz natural em retratos', creator: 'Clara Reis', profession: 'Fotógrafa', category: 'Fotografia', tool: 'Câmera', language: 'Português', level: 'Todos os níveis', price: 0, status: 'Ao vivo', schedule: 'Agora', viewers: '618', accent: 'blue', initials: 'CR', objective: 'Entender luz, sombra e enquadramento observando decisões reais durante uma sessão.', audiences: ['TEEN', 'ADULT'] },
-  { id: 4, title: 'Bichos do jardim: observar e desenhar', creator: 'Bia Yamada', profession: 'Ilustradora', category: 'Natureza', tool: 'Papel e lápis', language: 'Português', level: 'Iniciante', price: 0, status: 'Ao vivo', schedule: 'Agora', viewers: '375', accent: 'violet', initials: 'BY', objective: 'Aprender a olhar formas, movimentos e detalhes de pequenos animais sem tirar nada do lugar.', audiences: ['CHILD', 'TEEN'] },
-  { id: 5, title: 'Pão de fermentação natural', creator: 'Caio Mendes', profession: 'Chef', category: 'Gastronomia', tool: 'Forno', language: 'Português', level: 'Iniciante', price: 0, status: 'Agendado', schedule: 'Hoje, 19:00', accent: 'gold', initials: 'CM', objective: 'Compreender tempo, fermentação e transformação dos ingredientes no processo real.', audiences: ['TEEN', 'ADULT'] },
-  { id: 6, title: 'Programando um sensor de umidade', creator: 'Nina Alves', profession: 'Tecnóloga', category: 'Tecnologia', tool: 'Microcontrolador', language: 'Português', level: 'Intermediário', price: 0, status: 'Agendado', schedule: 'Amanhã, 18:30', accent: 'green', initials: 'NA', objective: 'Usar tecnologia para observar o solo e entender quando uma planta precisa de água.', audiences: ['TEEN', 'ADULT'] },
-  { id: 7, title: 'Portfólio que conta uma história', creator: 'Leo Costa', profession: 'Designer', category: 'Carreira', tool: 'Figma', language: 'Português', level: 'Todos os níveis', price: 15, status: 'Agendado', schedule: 'Qui, 20:00', accent: 'pink', initials: 'LC', objective: 'Transformar processo real em narrativa profissional sem esconder dúvidas e decisões.', audiences: ['TEEN', 'ADULT'] },
-  { id: 8, title: 'Da semente ao broto', creator: 'Eva Campos', profession: 'Educadora ambiental', category: 'Natureza', tool: 'Terra e sementes', language: 'Português', level: 'Iniciante', price: 0, status: 'Agendado', schedule: 'Sáb, 10:00', accent: 'green', initials: 'EC', objective: 'Acompanhar germinação e aprender a cuidar de uma planta com curiosidade e responsabilidade.', audiences: ['CHILD', 'TEEN'] },
-]
+// Regra de integridade: o bundle não contém catálogo, audiência, criadores ou
+// métricas operacionais fictícias. Até a integração carregar uma fonte real,
+// a interface exibe estado vazio em vez de dados demonstrativos.
+const sessions: Session[] = []
+const creators: CreatorSummary[] = []
+const newCreators: CreatorSummary[] = []
 
 const categories = [
-  ['◌', 'Natureza', 'experiências'], ['✎', 'Criatividade', 'processos'], ['{ }', 'Tecnologia', 'projetos'],
-  ['◉', 'Fotografia', 'olhares'], ['✦', 'Gastronomia', 'saberes'], ['◇', 'Ofícios', 'fazeres'],
-]
-
-const creators = [
-  { name: 'Marina Luz', role: 'Designer de marcas', followers: '24 mil seguidores', initials: 'ML', accent: 'coral' },
-  { name: 'Caio Mendes', role: 'Chef e padeiro', followers: '18 mil seguidores', initials: 'CM', accent: 'gold' },
-  { name: 'Eva Campos', role: 'Educadora ambiental', followers: '16 mil seguidores', initials: 'EC', accent: 'green' },
-  { name: 'Clara Reis', role: 'Fotógrafa', followers: '12 mil seguidores', initials: 'CR', accent: 'blue' },
-]
-
-const newCreators = [
-  { name: 'Ravi Nunes', role: 'Marceneiro', initials: 'RN', accent: 'clay' },
-  { name: 'Lia Prado', role: 'Bióloga de campo', initials: 'LP', accent: 'green' },
-  { name: 'Tomás Lee', role: 'Desenvolvedor criativo', initials: 'TL', accent: 'blue' },
+  ['◌', 'Natureza'], ['✎', 'Criatividade'], ['{ }', 'Tecnologia'],
+  ['◉', 'Fotografia'], ['✦', 'Gastronomia'], ['◇', 'Ofícios'],
 ]
 
 const audienceCopy: Record<Audience, { eyebrow: string; title: string; description: string }> = {
@@ -93,7 +84,7 @@ function SessionCard({ session, onWatch, compact = false }: { session: Session; 
       </button>
       <div className="session-info">
         <Avatar initials={session.initials} accent={session.accent} />
-        <div><h3>{session.title}</h3><p>{session.creator} <span className="verified">✓</span></p></div>
+        <div><h3>{session.title}</h3><p>{session.creator}</p></div>
       </div>
       <div className="card-meta"><span>{session.category}</span><strong>{session.price === 0 ? 'Gratuito' : `R$ ${session.price}`}</strong></div>
     </article>
@@ -172,7 +163,10 @@ export function App() {
   const liveSessions = filtered.filter((session) => session.status === 'Ao vivo')
   const upcoming = filtered.filter((session) => session.status === 'Agendado')
   const activeFilterCount = [category !== 'Todas', profession !== 'Todas', tool !== 'Todas', language !== 'Todos', level !== 'Todos', payment !== 'Todos', timing !== 'Todos', maxPrice < 50].filter(Boolean).length
-  const liveCount = liveSessions.length
+  const professionOptions = ['Todas', ...Array.from(new Set(sessions.map((session) => session.profession)))]
+  const toolOptions = ['Todas', ...Array.from(new Set(sessions.map((session) => session.tool)))]
+  const languageOptions = ['Todos', ...Array.from(new Set(sessions.map((session) => session.language)))]
+  const levelOptions = ['Todos', ...Array.from(new Set(sessions.map((session) => session.level)))]
 
   const clearFilters = () => {
     setCategory('Todas'); setProfession('Todas'); setTool('Todas'); setLanguage('Todos')
@@ -198,7 +192,7 @@ export function App() {
       return
     }
     if (session.status === 'Agendado') {
-      setToast('Lembrete salvo. Avisaremos quando a aula começar.')
+      setToast('O lembrete só será confirmado quando o serviço de agenda responder.')
       return
     }
     setActiveLive(session)
@@ -281,7 +275,7 @@ export function App() {
   if (activeLive && authSession) return <LiveRoom session={activeLive} audience={authSession.user.audience} user={authSession.user} onClose={() => setActiveLive(null)} />
   if (studioOpen) return <LiveStudio onClose={() => setStudioOpen(false)} />
   if (libraryOpen) return <RecordingLibrary onClose={() => setLibraryOpen(false)} />
-  if (dashboardOpen) return <CreatorDashboard onClose={() => setDashboardOpen(false)} onStartLive={() => { setDashboardOpen(false); setStudioOpen(true) }} />
+  if (dashboardOpen) return <CreatorDashboard creatorLabel={authSession?.user.email.split('@')[0] ?? 'Criador'} onClose={() => setDashboardOpen(false)} onStartLive={() => { setDashboardOpen(false); setStudioOpen(true) }} />
   if (adminOpen) return <AdminDashboard onClose={() => setAdminOpen(false)} />
 
   return (
@@ -303,7 +297,7 @@ export function App() {
       <main id="inicio">
         <section className="welcome">
           <div className="welcome-copy"><p className="eyebrow">INSTITUTO DE APRENDIZADO VIVO</p><h1>Onde o conhecimento<br /><em>acontece vivo.</em></h1><p className="mission">Aprenda acompanhando pessoas, natureza e tecnologia em processo. <em>Porque tecnologia também é natureza.</em></p><div className="welcome-actions"><a className="primary hero-button" href="#experiencias">Explorar experiências</a><button className="secondary" onClick={() => openAuth(authSession ? 'login' : 'register')}>{authSession ? 'Minha conta' : 'Começar gratuitamente'}</button></div></div>
-          <div className="brand-stage"><BrandMark symbolOnly className="hero-mark" /><p className="live-now"><strong>● {liveCount}</strong> ao vivo para você</p></div>
+          <div className="brand-stage"><BrandMark symbolOnly className="hero-mark" /><p className="live-now"><strong>●</strong> transmissões verificadas aparecem aqui quando carregadas</p></div>
         </section>
 
         <section className="audience-section" aria-labelledby="audience-title">
@@ -317,11 +311,11 @@ export function App() {
           <label className="search"><span aria-hidden="true">⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Busque por tema, profissional ou ferramenta..." /></label>
           <button className={`filter-trigger ${filtersOpen ? 'selected' : ''}`} onClick={() => setFiltersOpen(!filtersOpen)} aria-expanded={filtersOpen} aria-controls="filters"><span>☷</span> Filtros {activeFilterCount > 0 && <b>{activeFilterCount}</b>}</button>
           {filtersOpen && <div className="filters" id="filters">
-            <Filter label="Profissão" value={profession} onChange={setProfession} options={['Todas', 'Designer', 'Ceramista', 'Fotógrafa', 'Ilustradora', 'Chef', 'Tecnóloga', 'Educadora ambiental']} />
-            <Filter label="Categoria" value={category} onChange={setCategory} options={['Todas', 'Natureza', 'Criatividade', 'Tecnologia', 'Fotografia', 'Gastronomia', 'Ofícios', 'Carreira']} />
-            <Filter label="Ferramenta" value={tool} onChange={setTool} options={['Todas', 'Figma', 'Torno', 'Câmera', 'Papel e lápis', 'Forno', 'Microcontrolador', 'Terra e sementes']} />
-            <Filter label="Idioma" value={language} onChange={setLanguage} options={['Todos', 'Português']} />
-            <Filter label="Nível" value={level} onChange={setLevel} options={['Todos', 'Iniciante', 'Intermediário', 'Avançado', 'Todos os níveis']} />
+            <Filter label="Profissão" value={profession} onChange={setProfession} options={professionOptions} />
+            <Filter label="Categoria" value={category} onChange={setCategory} options={['Todas', ...categories.map(([, name]) => name)]} />
+            <Filter label="Ferramenta" value={tool} onChange={setTool} options={toolOptions} />
+            <Filter label="Idioma" value={language} onChange={setLanguage} options={languageOptions} />
+            <Filter label="Nível" value={level} onChange={setLevel} options={levelOptions} />
             <Filter label="Preço" value={payment} onChange={setPayment} options={['Todos', 'Gratuito', 'Pago']} />
             <Filter label="Quando" value={timing} onChange={setTiming} options={['Todos', 'Ao vivo', 'Agendado']} />
             <label className="range-filter"><span>Até R$ {maxPrice}</span><input aria-label="Faixa de preço máxima" type="range" min="0" max="50" step="5" value={maxPrice} onChange={(event) => setMaxPrice(Number(event.target.value))} /></label>
@@ -340,28 +334,28 @@ export function App() {
 
         <section className="category-section" id="categorias">
           <SectionHeading eyebrow="CAMINHOS DE DESCOBERTA" title="Categorias" />
-          <div className="category-grid">{categories.map(([icon, name, count]) => <button key={name} onClick={() => { setCategory(name); setFiltersOpen(true); document.getElementById('experiencias')?.scrollIntoView() }}><span>{icon}</span><strong>{name}</strong><small>{count}</small><i>↗</i></button>)}</div>
+          <div className="category-grid">{categories.map(([icon, name]) => <button key={name} onClick={() => { setCategory(name); setFiltersOpen(true); document.getElementById('experiencias')?.scrollIntoView() }}><span>{icon}</span><strong>{name}</strong><small>Área de aprendizado</small><i>↗</i></button>)}</div>
         </section>
 
         <section className="split-sections" id="proximas">
           <div><SectionHeading eyebrow="PROGRAME-SE" title="Próximas aulas" />{upcoming.length ? <div className="upcoming-list">{upcoming.map((session) => <SessionCard key={session.id} session={session} compact onWatch={() => watchSession(session)} />)}</div> : <EmptyState />}</div>
           <div><SectionHeading eyebrow="EM DESTAQUE" title="Criadores populares" />
-            <div className="creator-list">{creators.map((creator, index) => <article key={creator.name}><span className="rank">0{index + 1}</span><Avatar {...creator} large /><div><h3>{creator.name} <span className="verified">✓</span></h3><p>{creator.role}</p><small>{creator.followers}</small></div><button aria-label={`Seguir ${creator.name}`} onClick={() => authSession ? setToast(`Agora você segue ${creator.name}.`) : openAuth('login')}>+</button></article>)}</div>
+            {creators.length ? <div className="creator-list">{creators.map((creator, index) => <article key={creator.name}><span className="rank">{String(index + 1).padStart(2, '0')}</span><Avatar {...creator} large /><div><h3>{creator.name}</h3><p>{creator.role}</p>{creator.followers && <small>{creator.followers}</small>}</div><button aria-label={`Seguir ${creator.name}`} onClick={() => authSession ? setToast(`Solicitação para seguir ${creator.name} enviada.`) : openAuth('login')}>+</button></article>)}</div> : <VerifiedEmptyState label="Nenhum criador verificado foi carregado." />}
           </div>
         </section>
 
         <section className="new-creators">
           <SectionHeading eyebrow="NOVOS TALENTOS" title="Acabaram de chegar" action="Conhecer todos" />
-          <div className="new-grid">{newCreators.map((creator) => <article key={creator.name}><Avatar {...creator} large /><div><h3>{creator.name}</h3><p>{creator.role}</p></div><span>Novo</span></article>)}</div>
+          {newCreators.length ? <div className="new-grid">{newCreators.map((creator) => <article key={creator.name}><Avatar {...creator} large /><div><h3>{creator.name}</h3><p>{creator.role}</p></div><span>Novo</span></article>)}</div> : <VerifiedEmptyState label="Nenhum novo criador verificado foi carregado." />}
         </section>
 
         <section className="workspace-section" aria-labelledby="workspace-title">
-          <div><p className="eyebrow">FAZER O CONHECIMENTO ACONTECER</p><h2 id="workspace-title">Ferramentas para quem aprende e para quem ensina</h2><p>Biblioteca, estúdio, acompanhamento e operação ficam atrás de sessão autenticada e permissões adequadas. Em homologação, os painéis profissionais podem ser visualizados como demonstração quando a API externa não estiver conectada.</p></div>
+          <div><p className="eyebrow">FAZER O CONHECIMENTO ACONTECER</p><h2 id="workspace-title">Ferramentas para quem aprende e para quem ensina</h2><p>Biblioteca, estúdio, acompanhamento e operação ficam atrás de sessão autenticada e permissões adequadas. Painéis operacionais exibem somente informações confirmadas por fontes reais; quando a fonte não está disponível, a interface mostra estado vazio.</p></div>
           <div className="workspace-actions"><button onClick={openLibrary}>Minha biblioteca</button><button onClick={openCreator}>Painel do criador</button><button onClick={openStudio}>Criar live</button><button onClick={openAdmin}>Administração</button></div>
         </section>
       </main>
 
-      <footer><a className="brand institute-brand-link" href="#inicio"><BrandMark /></a><p>Onde o conhecimento acontece vivo.</p><nav aria-label="Links institucionais"><a href="#experiencias">Experiências</a><a href="#categorias">Categorias</a><button onClick={() => setToast('Política de privacidade em validação para o beta.')}>Privacidade</button></nav><span>© 2026 Instituto Tela Viva</span></footer>
+      <footer><a className="brand institute-brand-link" href="#inicio"><BrandMark /></a><p>Onde o conhecimento acontece vivo.</p><nav aria-label="Links institucionais"><a href="#experiencias">Experiências</a><a href="#categorias">Categorias</a><button onClick={() => setToast('Política de privacidade ainda não publicada nesta versão.')}>Privacidade</button></nav><span>© 2026 Instituto Tela Viva</span></footer>
 
       {loginOpen && <div className="modal-backdrop" role="presentation" onMouseDown={() => setLoginOpen(false)}><section className="modal auth-modal" role="dialog" aria-modal="true" aria-labelledby="login-title" onMouseDown={(event) => event.stopPropagation()}><button className="modal-close" onClick={() => setLoginOpen(false)} aria-label="Fechar">×</button><BrandMark symbolOnly className="modal-brand-mark" />
         <div className="auth-tabs" role="tablist" aria-label="Acesso à conta"><button role="tab" aria-selected={authMode === 'login'} onClick={() => { setAuthMode('login'); setAuthError(''); setAuthMessage('') }}>Entrar</button><button role="tab" aria-selected={authMode === 'register'} onClick={() => { setAuthMode('register'); setAuthError(''); setAuthMessage('') }}>Criar conta</button></div>
@@ -393,7 +387,11 @@ function SectionHeading({ eyebrow, title, action }: { eyebrow: string; title: st
 }
 
 function EmptyState() {
-  return <div className="empty-state"><strong>Nenhuma aula encontrada</strong><p>Tente ajustar a busca, a faixa de experiência ou remover alguns filtros.</p></div>
+  return <div className="empty-state"><strong>Nenhuma aula verificada foi carregada</strong><p>O Tela Viva não preenche o catálogo com dados fictícios. Conteúdo real aparecerá aqui quando vier da fonte oficial.</p></div>
+}
+
+function VerifiedEmptyState({ label }: { label: string }) {
+  return <div className="empty-state"><strong>{label}</strong><p>Sem dados inventados para preencher a interface.</p></div>
 }
 
 function audienceLabel(audience: Audience): string {

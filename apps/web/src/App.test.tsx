@@ -34,28 +34,30 @@ describe('Instituto Tela Viva', () => {
     expect(screen.getByRole('heading', { name: 'Profissionais ao vivo' })).toBeInTheDocument()
   })
 
-  it('adapta o catálogo quando a experiência infantil é escolhida', () => {
+  it('não preenche o catálogo com aulas, criadores ou audiência fictícios', () => {
     render(<App />)
-    fireEvent.click(screen.getByRole('button', { name: /descobrir brincando/i }))
 
-    expect(screen.getByText('Bichos do jardim: observar e desenhar')).toBeInTheDocument()
+    expect(screen.getAllByText('Nenhuma aula verificada foi carregada').length).toBeGreaterThan(0)
+    expect(screen.getByText('Nenhum criador verificado foi carregado.')).toBeInTheDocument()
+    expect(screen.getByText('Nenhum novo criador verificado foi carregado.')).toBeInTheDocument()
+    expect(screen.queryByText('Marina Luz')).not.toBeInTheDocument()
     expect(screen.queryByText('Identidade visual do zero')).not.toBeInTheDocument()
+    expect(screen.queryByText('1,2 mil')).not.toBeInTheDocument()
   })
 
-  it('pesquisa e combina filtros sem perder a faixa escolhida', () => {
+  it('mantém filtros disponíveis sem inventar resultados', () => {
     render(<App />)
     fireEvent.change(screen.getByPlaceholderText(/busque por tema/i), { target: { value: 'Figma' } })
-    expect(screen.getByText('Identidade visual do zero')).toBeInTheDocument()
-    expect(screen.getByText('Portfólio que conta uma história')).toBeInTheDocument()
-
     fireEvent.click(screen.getByRole('button', { name: /filtros/i }))
-    fireEvent.change(screen.getByLabelText('Preço'), { target: { value: 'Gratuito' } })
+
+    expect(screen.getByLabelText('Profissão')).toHaveValue('Todas')
+    expect(screen.getByLabelText('Ferramenta')).toHaveValue('Todas')
     expect(screen.queryByText('Portfólio que conta uma história')).not.toBeInTheDocument()
   })
 
-  it('exige autenticação antes de entrar em uma transmissão', () => {
+  it('abre autenticação sem depender de uma transmissão fictícia', () => {
     render(<App />)
-    fireEvent.click(screen.getByRole('button', { name: 'Assistir Identidade visual do zero' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Entrar' }))
 
     const dialog = screen.getByRole('dialog', { name: 'Entre para assistir' })
     expect(within(dialog).getByLabelText('E-mail')).toBeInTheDocument()
@@ -74,28 +76,35 @@ describe('Instituto Tela Viva', () => {
   })
 })
 
-describe('Áreas operacionais em homologação', () => {
+describe('Áreas operacionais sem dados fictícios', () => {
   beforeEach(() => {
     window.localStorage.clear()
     window.sessionStorage.clear()
   })
 
-  it('mantém o painel do criador demonstrável sem conceder autorização de backend', () => {
+  it('abre o painel do criador em estado vazio e identifica rascunhos locais', () => {
     render(<App />)
     fireEvent.click(screen.getByRole('button', { name: 'Painel do criador' }))
 
-    expect(screen.getByRole('heading', { name: /olá, marina/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /olá, criador/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Iniciar transmissão' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Configuração de preços' })).toBeInTheDocument()
+    expect(screen.getAllByText('Sem dados verificados').length).toBeGreaterThan(0)
+    expect(screen.queryByText('R$ 8.420')).not.toBeInTheDocument()
+    expect(screen.queryByText('Marina Luz')).not.toBeInTheDocument()
   })
 
-  it('mantém a administração demonstrável e com fila de moderação', () => {
+  it('abre a administração sem métricas, usuários ou moderação inventados', () => {
     render(<App />)
     fireEvent.click(screen.getByRole('button', { name: 'Administração' }))
 
     expect(screen.getByRole('heading', { name: 'Visão geral' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Fila de moderação' })).toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Métricas da plataforma' })).toBeInTheDocument()
+    expect(screen.getByText(/nenhuma informação de moderação foi carregada/i)).toBeInTheDocument()
+    expect(screen.queryByText('48.290')).not.toBeInTheDocument()
+    expect(screen.queryByText('R$ 284 mil')).not.toBeInTheDocument()
+    expect(screen.queryByText('Ana Ribeiro')).not.toBeInTheDocument()
   })
 })
 

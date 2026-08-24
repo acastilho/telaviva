@@ -31,13 +31,8 @@ type RemoteSettings = {
   reactions: boolean
 }
 
-const initialMessages: Message[] = [
-  { id: 'demo-1', author: 'Lia', text: 'Que material você recomenda para começar?', kind: 'question' },
-  { id: 'demo-2', author: 'Rafael', text: 'Muito bom ver a decisão sendo explicada ao vivo.', kind: 'message' },
-]
-
 const socketLabel: Record<LiveSocketStatus, string> = {
-  idle: 'modo demonstração',
+  idle: 'sem conexão em tempo real',
   connecting: 'conectando…',
   connected: 'dados ao vivo',
   reconnecting: 'reconectando…',
@@ -57,7 +52,7 @@ function eventNumber(event: LiveSocketEvent, key: string): number | null {
 
 export function LiveRoom({ session, audience, user, onClose }: LiveRoomProps) {
   const liveConfiguration = useMemo(() => homologationLiveConfiguration(), [])
-  const [messages, setMessages] = useState<Message[]>(liveConfiguration.enabled ? [] : initialMessages)
+  const [messages, setMessages] = useState<Message[]>([])
   const [draft, setDraft] = useState('')
   const [tab, setTab] = useState<'chat' | 'questions'>('chat')
   const [liked, setLiked] = useState(false)
@@ -65,7 +60,7 @@ export function LiveRoom({ session, audience, user, onClose }: LiveRoomProps) {
   const [socketStatus, setSocketStatus] = useState<LiveSocketStatus>(liveConfiguration.enabled ? 'connecting' : 'idle')
   const [socketError, setSocketError] = useState('')
   const [viewerCount, setViewerCount] = useState<number | null>(null)
-  const [remoteSettings, setRemoteSettings] = useState<RemoteSettings>({ chat: true, questions: true, reactions: true })
+  const [remoteSettings, setRemoteSettings] = useState<RemoteSettings>({ chat: false, questions: false, reactions: false })
   const socketRef = useRef<LiveSocketClient | null>(null)
 
   useEffect(() => {
@@ -160,26 +155,16 @@ export function LiveRoom({ session, audience, user, onClose }: LiveRoomProps) {
   }
 
   const visibleMessages = messages.filter((message) => tab === 'chat' ? message.kind === 'message' : message.kind === 'question')
-  const canSubmit = draft.trim().length > 1 && (tab === 'questions' ? interaction.questions : interaction.chat) && (!liveConfiguration.enabled || socketStatus === 'connected')
+  const canSubmit = liveConfiguration.enabled && socketStatus === 'connected' && draft.trim().length > 1 && (tab === 'questions' ? interaction.questions : interaction.chat)
 
   const send = () => {
     if (!canSubmit) return
     const text = draft.trim().slice(0, 500)
     const kind = tab === 'questions' ? 'question' : 'message'
-
-    if (liveConfiguration.enabled) {
-      const sent = socketRef.current?.send(kind, text) ?? false
-      if (!sent) {
-        setSocketError('A conexão ao vivo ainda não está pronta. Tente novamente em instantes.')
-        return
-      }
-    } else {
-      setMessages((current) => [...current, {
-        id: `local-${Date.now()}`,
-        author: user.email.split('@')[0] || 'Você',
-        text,
-        kind,
-      }])
+    const sent = socketRef.current?.send(kind, text) ?? false
+    if (!sent) {
+      setSocketError('A conexão ao vivo ainda não está pronta. Tente novamente em instantes.')
+      return
     }
     setDraft('')
   }
@@ -192,7 +177,11 @@ export function LiveRoom({ session, audience, user, onClose }: LiveRoomProps) {
     setLiked(next)
   }
 
-  const viewers = viewerCount !== null ? String(viewerCount) : session.viewers ?? 'ao vivo'
+  const audienceStatus = viewerCount !== null
+    ? `${viewerCount} assistindo`
+    : session.viewers
+      ? `${session.viewers} assistindo`
+      : 'audiência não carregada'
 
   return (
     <div className="live-room-shell">
@@ -200,7 +189,7 @@ export function LiveRoom({ session, audience, user, onClose }: LiveRoomProps) {
         <button className="brand brand-button institute-brand-link" onClick={onClose} aria-label="Voltar ao início"><BrandMark /></button>
         <div className="live-room-status">
           <span>● AO VIVO</span>
-          <small>{viewers} assistindo · {socketLabel[socketStatus]}</small>
+          <small>{audienceStatus} · {socketLabel[socketStatus]}</small>
         </div>
         <button className="secondary compact" onClick={onClose}>Sair da aula</button>
       </header>
@@ -226,7 +215,7 @@ export function LiveRoom({ session, audience, user, onClose }: LiveRoomProps) {
             <div>
               <p className="eyebrow">CONHECIMENTO ACONTECENDO AGORA</p>
               <h1>{session.title}</h1>
-              <p>{session.objective ?? 'Acompanhe o processo, as escolhas e os erros enquanto o trabalho acontece.'}</p>
+              <p>{session.objective ?? 'Objetivo da aula não informado.'}</p>
             </div>
             <button className={`reaction-button ${liked ? 'active' : ''}`} onClick={toggleLike} aria-pressed={liked} disabled={!interaction.reactions}>♡ <span>{liked ? 'Apoiando' : 'Apoiar'}</span></button>
           </div>
@@ -241,9 +230,10 @@ export function LiveRoom({ session, audience, user, onClose }: LiveRoomProps) {
         <aside className="live-interaction" aria-label={interaction.label}>
           <div className="interaction-heading">
             <div><p className="eyebrow">{interaction.label.toUpperCase()}</p><h2>Participe</h2></div>
-            <span className="moderation-chip">{socketStatus === 'connected' ? 'Conectado' : 'Protegido'}</span>
+            <span className="moderation-chip">{socketStatus === 'connected' ? 'Conectado' : 'Sem conexão em tempo real'}</span>
           </div>
 
+          {!liveConfiguration.enabled && <div className="interaction-guardrail" role="status"><strong>Interação não conectada</strong><p>Mensagens e reações permanecem desativadas até existir uma conexão real com o socket da transmissão.</p></div>}
           {socketError && <div className="interaction-guardrail" role="alert"><strong>Conexão em tempo real</strong><p>{socketError}</p></div>}
 
           <div className="interaction-tabs" role="tablist" aria-label="Canais de interação">
@@ -251,16 +241,16 @@ export function LiveRoom({ session, audience, user, onClose }: LiveRoomProps) {
             <button role="tab" aria-selected={tab === 'questions'} disabled={!interaction.questions} onClick={() => setTab('questions')}>Perguntas</button>
           </div>
 
-          {!interaction.chat && tab === 'chat' && <div className="interaction-guardrail"><strong>Conversa livre desativada</strong><p>Na área infantil, a participação acontece por perguntas que passam por moderação.</p></div>}
+          {!interaction.chat && tab === 'chat' && audience === 'CHILD' && <div className="interaction-guardrail"><strong>Conversa livre desativada</strong><p>Na área infantil, a participação acontece por perguntas que passam por moderação.</p></div>}
 
           <div className="message-list" aria-live="polite">
             {visibleMessages.map((message) => <article key={message.id}><span>{message.author.slice(0, 2).toUpperCase()}</span><div><strong>{message.author}</strong><p>{message.text}</p></div></article>)}
-            {!visibleMessages.length && <p className="message-empty">{liveConfiguration.enabled ? 'Ainda não há mensagens ao vivo neste canal.' : 'Ainda não há mensagens neste canal.'}</p>}
+            {!visibleMessages.length && <p className="message-empty">Ainda não há mensagens verificadas neste canal.</p>}
           </div>
 
           <div className="interaction-compose">
             <label htmlFor="live-message">{tab === 'questions' ? 'Envie uma pergunta' : 'Escreva na conversa'}</label>
-            <textarea id="live-message" value={draft} onChange={(event) => setDraft(event.target.value)} maxLength={500} disabled={(tab === 'chat' && !interaction.chat) || (tab === 'questions' && !interaction.questions)} placeholder={tab === 'questions' ? 'Pergunte sobre o que está acontecendo...' : 'Compartilhe uma observação respeitosa...'} />
+            <textarea id="live-message" value={draft} onChange={(event) => setDraft(event.target.value)} maxLength={500} disabled={!liveConfiguration.enabled || (tab === 'chat' && !interaction.chat) || (tab === 'questions' && !interaction.questions)} placeholder={tab === 'questions' ? 'Pergunte sobre o que está acontecendo...' : 'Compartilhe uma observação respeitosa...'} />
             <div><small>{draft.length}/500</small><button className="primary small" disabled={!canSubmit} onClick={send}>Enviar</button></div>
           </div>
           <p className="safety-note">Não compartilhe dados pessoais. Denúncias e moderação ficam disponíveis durante toda a experiência.</p>
