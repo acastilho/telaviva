@@ -18,6 +18,7 @@ from app.scheduling.schemas import (
     NotificationResponse,
     ReminderCreate,
     ReminderResponse,
+    StreamActivationRequest,
     StreamCreate,
     StreamResponse,
 )
@@ -47,6 +48,43 @@ async def create_stream(
         stream = await repository.create_stream(creator.id, **body.model_dump())
     except UnknownCategoryError as error:
         raise HTTPException(status_code=422, detail="Category does not exist") from error
+    return _stream_response(stream)
+
+
+@router.get("/streams/active", response_model=list[StreamResponse])
+async def list_active_streams(
+    repository: SchedulingRepository = Depends(get_scheduling_repository),
+) -> list[StreamResponse]:
+    """Return only transmissions that a creator explicitly started and has not ended."""
+    return [_stream_response(item) for item in await repository.list_active_streams()]
+
+
+@router.post("/streams/{stream_id}/activate", response_model=StreamResponse)
+async def activate_stream(
+    stream_id: UUID,
+    body: StreamActivationRequest,
+    repository: SchedulingRepository = Depends(get_scheduling_repository),
+    creator: User = require_roles(Role.CREATOR),  # type: ignore[assignment]
+) -> StreamResponse:
+    try:
+        stream = await repository.activate_stream(
+            stream_id, creator.id, body.room_id, datetime.now(UTC)
+        )
+    except StreamNotFoundError as error:
+        raise HTTPException(status_code=404, detail="Stream not found") from error
+    return _stream_response(stream)
+
+
+@router.post("/streams/{stream_id}/finish", response_model=StreamResponse)
+async def finish_stream(
+    stream_id: UUID,
+    repository: SchedulingRepository = Depends(get_scheduling_repository),
+    creator: User = require_roles(Role.CREATOR),  # type: ignore[assignment]
+) -> StreamResponse:
+    try:
+        stream = await repository.finish_stream(stream_id, creator.id, datetime.now(UTC))
+    except StreamNotFoundError as error:
+        raise HTTPException(status_code=404, detail="Active stream not found") from error
     return _stream_response(stream)
 
 
