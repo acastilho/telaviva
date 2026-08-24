@@ -1,34 +1,79 @@
 import { useEffect, useState } from 'react'
+import { authClient } from './auth'
 import { BrandMark } from './BrandMark'
 import { LiveViewer } from './LiveViewer'
-import { schedulingClient, usesRemoteSchedulingApi, type ScheduledStream } from './scheduling'
+import { schedulingClient, usesRemoteSchedulingApi } from './scheduling'
 
-export function VerifiedLiveViewer({ roomId }: { roomId: string }) {
-  const [stream, setStream] = useState<ScheduledStream | null>(null)
-  const [status, setStatus] = useState<'checking' | 'active' | 'inactive' | 'error'>(usesRemoteSchedulingApi ? 'checking' : 'inactive')
+type ViewerStatus = 'checking' | 'active' | 'inactive' | 'unauthenticated' | 'denied' | 'error'
+
+export function VerifiedLiveViewer({ streamId }: { streamId: string }) {
+  const [roomId, setRoomId] = useState<string | null>(null)
+  const [status, setStatus] = useState<ViewerStatus>(usesRemoteSchedulingApi ? 'checking' : 'inactive')
 
   useEffect(() => {
     if (!usesRemoteSchedulingApi) return
     let mounted = true
+
     const verify = async () => {
+      const session = await authClient.restore()
+      if (!mounted) return
+      if (!session) {
+        setRoomId(null)
+        setStatus('unauthenticated')
+        return
+      }
+
       try {
-        const active = await schedulingClient.activeByRoom(roomId)
+        const access = await schedulingClient.access(streamId, session.accessToken)
         if (!mounted) return
-        setStream(active)
-        setStatus(active ? 'active' : 'inactive')
+        if (!access.granted) {
+          setRoomId(null)
+          setStatus('denied')
+          return
+        }
+        if (!access.live_room_id) {
+          setRoomId(null)
+          setStatus('inactive')
+          return
+        }
+        setRoomId(access.live_room_id)
+        setStatus('active')
       } catch {
-        if (mounted) setStatus('error')
+        if (!mounted) return
+        setRoomId(null)
+        setStatus('denied')
       }
     }
+
     void verify()
     const timer = window.setInterval(() => void verify(), 12_000)
     return () => {
       mounted = false
       window.clearInterval(timer)
     }
-  }, [roomId])
+  }, [streamId])
 
-  if (status === 'active' && stream) return <LiveViewer roomId={roomId} />
+  if (status === 'active' && roomId) return <LiveViewer roomId={roomId} />
+
+  const title = status === 'checking'
+    ? 'Verificando seu acesso'
+    : status === 'unauthenticated'
+      ? 'Entre para assistir'
+      : status === 'inactive'
+        ? 'Esta aula não está ao vivo'
+        : status === 'denied'
+          ? 'Acesso não autorizado'
+          : 'Não foi possível verificar a aula'
+
+  const description = status === 'checking'
+    ? 'Confirmando sua sessão e a permissão para esta transmissão.'
+    : status === 'unauthenticated'
+      ? 'O identificador da sala só é liberado após autenticação e verificação de acesso.'
+      : status === 'inactive'
+        ? 'Sua permissão foi verificada, mas não existe uma sala ativa para esta aula.'
+        : status === 'denied'
+          ? 'Esta transmissão exige a permissão, compra, assinatura ou convite aplicável à aula.'
+          : 'A fonte oficial de acesso está indisponível. Nenhuma sala será presumida como autorizada.'
 
   return (
     <div className="broadcast-viewer">
@@ -37,12 +82,8 @@ export function VerifiedLiveViewer({ roomId }: { roomId: string }) {
         <section className="broadcast-stage" aria-live="polite">
           <div className="broadcast-waiting">
             <BrandMark symbolOnly />
-            <h1>{status === 'checking' ? 'Verificando a aula' : status === 'inactive' ? 'Esta aula não está ao vivo' : 'Não foi possível verificar a aula'}</h1>
-            <p>{status === 'checking'
-              ? 'Confirmando no sistema se existe uma transmissão ativa para este link.'
-              : status === 'inactive'
-                ? 'O vídeo só é exibido quando uma aula cadastrada é iniciada pelo criador.'
-                : 'A fonte oficial de aulas está indisponível. Nenhuma transmissão será presumida como ativa.'}</p>
+            <h1>{title}</h1>
+            <p>{description}</p>
           </div>
         </section>
       </main>
