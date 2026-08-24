@@ -123,3 +123,33 @@ jobs:
           done
           echo "Endpoint público ainda não propagou após 50 segundos."
           exit 1
+
+      - name: Registrar endpoint validado
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PUBLIC_URL: https://raw.githack.com/${{ github.repository }}/homolog-public/index.html
+          SOURCE_SHA: ${{ github.sha }}
+        shell: bash
+        run: |
+          cd apps/web/dist
+          python - <<'PY'
+          import json
+          import os
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          Path('PUBLIC_ENDPOINT.json').write_text(
+              json.dumps({
+                  'url': os.environ['PUBLIC_URL'],
+                  'validated': True,
+                  'validated_at': datetime.now(timezone.utc).isoformat(),
+                  'source_sha': os.environ['SOURCE_SHA'],
+                  'validation': 'HTTP 200/content contains Instituto Tela Viva',
+              }, ensure_ascii=False, indent=2) + '\n',
+              encoding='utf-8',
+          )
+          PY
+          git add PUBLIC_ENDPOINT.json
+          git commit -m "chore: registrar endpoint público validado ${GITHUB_SHA}"
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push origin homolog-public
