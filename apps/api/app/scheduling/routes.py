@@ -18,6 +18,7 @@ from app.scheduling.schemas import (
     NotificationResponse,
     ReminderCreate,
     ReminderResponse,
+    StreamActivationRequest,
     StreamCreate,
     StreamResponse,
 )
@@ -50,6 +51,41 @@ async def create_stream(
     return _stream_response(stream)
 
 
+@router.get("/streams/active", response_model=list[StreamResponse])
+async def list_active_streams(
+    repository: SchedulingRepository = Depends(get_scheduling_repository),
+) -> list[StreamResponse]:
+    """Return only transmissions explicitly started by their creator and not ended."""
+    return [_stream_response(item) for item in await repository.list_active_streams()]
+
+
+@router.post("/streams/{stream_id}/activate", response_model=StreamResponse)
+async def activate_stream(
+    stream_id: UUID,
+    body: StreamActivationRequest,
+    repository: SchedulingRepository = Depends(get_scheduling_repository),
+    creator: User = require_roles(Role.CREATOR),  # type: ignore[assignment]
+) -> StreamResponse:
+    try:
+        stream = await repository.activate_stream(stream_id, creator.id, body.room_id, datetime.now(UTC))
+    except StreamNotFoundError as error:
+        raise HTTPException(status_code=404, detail="Stream not found") from error
+    return _stream_response(stream)
+
+
+@router.post("/streams/{stream_id}/finish", response_model=StreamResponse)
+async def finish_stream(
+    stream_id: UUID,
+    repository: SchedulingRepository = Depends(get_scheduling_repository),
+    creator: User = require_roles(Role.CREATOR),  # type: ignore[assignment]
+) -> StreamResponse:
+    try:
+        stream = await repository.finish_stream(stream_id, creator.id, datetime.now(UTC))
+    except StreamNotFoundError as error:
+        raise HTTPException(status_code=404, detail="Active stream not found") from error
+    return _stream_response(stream)
+
+
 @router.get("/streams", response_model=list[StreamResponse])
 async def list_streams(
     creator_id: UUID | None = None,
@@ -58,12 +94,7 @@ async def list_streams(
 ) -> list[StreamResponse]:
     if starts_after.tzinfo is None or starts_after.utcoffset() is None:
         raise HTTPException(status_code=422, detail="starts_after timezone is required")
-    return [
-        _stream_response(item)
-        for item in await repository.list_streams(
-            creator_id=creator_id, starts_after=starts_after
-        )
-    ]
+    return [_stream_response(item) for item in await repository.list_streams(creator_id=creator_id, starts_after=starts_after)]
 
 
 @router.put("/creators/{creator_id}/follow", status_code=status.HTTP_204_NO_CONTENT)
@@ -94,10 +125,7 @@ async def my_agenda(
     repository: SchedulingRepository = Depends(get_scheduling_repository),
     user: User = Depends(get_current_user),
 ) -> list[StreamResponse]:
-    return [
-        _stream_response(item)
-        for item in await repository.list_agenda(user.id, datetime.now(UTC))
-    ]
+    return [_stream_response(item) for item in await repository.list_agenda(user.id, datetime.now(UTC))]
 
 
 @router.put("/streams/{stream_id}/reminder", response_model=ReminderResponse)
@@ -131,10 +159,7 @@ async def notifications(
     repository: SchedulingRepository = Depends(get_scheduling_repository),
     user: User = Depends(get_current_user),
 ) -> list[NotificationResponse]:
-    return [
-        _notification_response(item)
-        for item in await repository.list_notifications(user.id, unread_only)
-    ]
+    return [_notification_response(item) for item in await repository.list_notifications(user.id, unread_only)]
 
 
 @router.patch("/notifications/{notification_id}/read", status_code=status.HTTP_204_NO_CONTENT)
