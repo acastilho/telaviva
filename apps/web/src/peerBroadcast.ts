@@ -53,10 +53,10 @@ export function createRoomId() {
   return Array.from({ length: 32 }, () => Math.floor(Math.random() * 16).toString(16)).join('')
 }
 
-export function createViewerUrl(roomId: string) {
+export function createViewerUrl(streamId: string) {
   const url = new URL(window.location.href)
   url.search = ''
   url.hash = ''
-  url.searchParams.set('live', normalizeRoomId(roomId))
+  url.searchParams.set('live', streamId)
   return url.toString()
 }
