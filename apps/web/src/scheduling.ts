@@ -13,7 +13,6 @@ export type ScheduledStream = {
   created_at: string
   live_started_at?: string | null
   live_ended_at?: string | null
-  live_room_id?: string | null
 }
 
 export type StreamCreatePayload = {
@@ -26,6 +25,15 @@ export type StreamCreatePayload = {
   level: ScheduledStream['level']
   price: string
   access_type: ScheduledStream['access_type']
+}
+
+export type StreamAccessResponse = {
+  stream_id: string
+  granted: boolean
+  reason: string
+  entitlement_id: string | null
+  checked_at: string
+  live_room_id: string | null
 }
 
 const configuredBase = (import.meta.env.VITE_API_URL as string | undefined)?.trim()
@@ -96,8 +104,11 @@ export const schedulingClient = {
     return request<ScheduledStream>(`/streams/${encodeURIComponent(streamId)}/finish`, { method: 'POST' }, accessToken)
   },
 
-  async activeByRoom(roomId: string): Promise<ScheduledStream | null> {
-    const active = await request<ScheduledStream[]>('/streams/active')
-    return active.find((stream) => stream.live_room_id === roomId) ?? null
+  access(streamId: string, accessToken: string): Promise<StreamAccessResponse> {
+    return request<StreamAccessResponse>(
+      `/streams/${encodeURIComponent(streamId)}/access`,
+      { method: 'POST' },
+      accessToken,
+    )
   },
 }
