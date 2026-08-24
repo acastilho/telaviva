@@ -58,6 +58,7 @@ class StreamActivationRequest(BaseModel):
 
 
 class StreamResponse(BaseModel):
+    # Room identifiers are authorization-sensitive and intentionally excluded.
     id: UUID
     creator_id: UUID
     title: str
@@ -72,7 +73,6 @@ class StreamResponse(BaseModel):
     created_at: datetime
     live_started_at: datetime | None = None
     live_ended_at: datetime | None = None
-    live_room_id: str | None = None
 
 
 class ReminderCreate(BaseModel):
