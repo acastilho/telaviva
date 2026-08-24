@@ -9,11 +9,11 @@ import './product.css'
 import './system.css'
 import './live-broadcast.css'
 
-const liveRoomId = new URLSearchParams(window.location.search).get('live')
+const liveStreamId = new URLSearchParams(window.location.search).get('live')
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    {liveRoomId ? <VerifiedLiveViewer roomId={liveRoomId} /> : <App />}
+    {liveStreamId ? <VerifiedLiveViewer streamId={liveStreamId} /> : <App />}
   </StrictMode>,
 )
 
