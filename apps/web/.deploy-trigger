@@ -1,0 +1,3 @@
+homologation deploy requested: 2026-08-24T07:16:00-03:00
+source commit: 7184179079cd173603e82c08bd38164174ff602b
+purpose: trigger CI, GitHub Pages and Render homologation workflows without changing application behavior
