@@ -181,7 +181,7 @@ class PostgresCommerceRepository:
         connection = await self._connect()
         try:
             row = await connection.fetchrow(
-                "SELECT s.creator_id,s.access_type,"
+                "SELECT s.creator_id,s.access_type,s.live_started_at,s.live_ended_at,s.live_room_id,"
                 "(SELECT e.id FROM entitlements e WHERE e.user_id=$2 AND e.revoked_at IS NULL "
                 "AND e.starts_at<=now() AND (e.expires_at IS NULL OR e.expires_at>now()) AND "
                 "((s.access_type='PAID' AND e.kind='STREAM' AND e.resource_id=s.id) OR "
@@ -205,8 +205,21 @@ class PostgresCommerceRepository:
                 "FREE" if access_type == "FREE" else "ENTITLED" if entitlement_id else
                 "INVITED" if row["invited"] else "ENTITLEMENT_REQUIRED"
             )
+            live_room_id = (
+                row["live_room_id"]
+                if granted
+                and row["live_started_at"] is not None
+                and row["live_ended_at"] is None
+                else None
+            )
             decision = AccessDecision(
-                stream_id, user_id, granted, reason, entitlement_id, datetime.now(UTC)
+                stream_id=stream_id,
+                user_id=user_id,
+                granted=granted,
+                reason=reason,
+                entitlement_id=entitlement_id,
+                checked_at=datetime.now(UTC),
+                live_room_id=live_room_id,
             )
             await connection.execute(
                 "INSERT INTO stream_accesses (id,stream_id,user_id,granted,reason,entitlement_id) "
