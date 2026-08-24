@@ -19,7 +19,7 @@ jobs:
           ref: fix/issue-8-active-live-system-v2
           fetch-depth: 0
 
-      - name: Patch remaining live access bypass paths
+      - name: Patch remaining source and regression test
         shell: bash
         run: |
           python - <<'PY'
@@ -32,20 +32,12 @@ jobs:
                   raise SystemExit(f'Expected snippet missing in {path}: {old[:120]!r}')
               file.write_text(text.replace(old, new, count), encoding='utf-8')
 
-          # Viewer URLs carry a public stream id, never the secret P2P room id.
-          replace(
-              'apps/web/src/peerBroadcast.ts',
-              '''export function createViewerUrl(roomId: string) {\n  const url = new URL(window.location.href)\n  url.search = ''\n  url.hash = ''\n  url.searchParams.set('live', normalizeRoomId(roomId))\n  return url.toString()\n}\n''',
-              '''export function createViewerUrl(streamId: string) {\n  const url = new URL(window.location.href)\n  url.search = ''\n  url.hash = ''\n  url.searchParams.set('live', streamId)\n  return url.toString()\n}\n''',
-          )
           replace(
               'apps/web/src/LiveStudio.tsx',
               '  const viewerUrl = useMemo(() => createViewerUrl(roomId), [roomId])\n',
               "  const viewerUrl = useMemo(() => streamId ? createViewerUrl(streamId) : '', [streamId])\n",
           )
 
-          # Public catalog sessions retain only stream identity; the room is fetched
-          # after POST /streams/{stream_id}/access succeeds for the authenticated user.
           replace('apps/web/src/App.tsx', '  liveRoomId?: string\n', '  liveStreamId?: string\n')
           replace(
               'apps/web/src/App.tsx',
@@ -59,18 +51,6 @@ jobs:
               "    url.searchParams.set('live', session.liveStreamId)\n",
           )
 
-          replace(
-              'apps/web/src/main.tsx',
-              "const liveRoomId = new URLSearchParams(window.location.search).get('live')\n",
-              "const liveStreamId = new URLSearchParams(window.location.search).get('live')\n",
-          )
-          replace(
-              'apps/web/src/main.tsx',
-              '    {liveRoomId ? <VerifiedLiveViewer roomId={liveRoomId} /> : <App />}\n',
-              '    {liveStreamId ? <VerifiedLiveViewer streamId={liveStreamId} /> : <App />}\n',
-          )
-
-          # Regression tests: public scheduling representations never expose a room id.
           replace(
               'apps/api/tests/test_scheduling.py',
               '    assert created["live_room_id"] is None\n',
@@ -90,36 +70,21 @@ jobs:
           restricted = '''\n\ndef test_restricted_active_streams_never_expose_room_id_publicly() -> None:\n    cases = [\n        ("PAID", "29.90", "room_paid_123"),\n        ("SUBSCRIBERS", "0", "room_subscribers_123"),\n        ("PRIVATE", "0", "room_private_123"),\n    ]\n    for access_type, price, room_id in cases:\n        created = create_stream(access_type=access_type, price=price)\n        activated = client.post(f"/streams/{created['id']}/activate", json={"room_id": room_id})\n        assert activated.status_code == 200\n        assert "live_room_id" not in activated.json()\n\n    response = client.get("/streams/active")\n    assert response.status_code == 200\n    active = response.json()\n    assert {item["access_type"] for item in active} >= {"PAID", "SUBSCRIBERS", "PRIVATE"}\n    assert all("live_room_id" not in item for item in active)\n\n\ndef test_only_owner_creator_can_activate_or_finish_and_room_id_is_validated() -> None:\n'''
           replace('apps/api/tests/test_scheduling.py', marker, restricted)
 
-          # Access endpoint test fixture releases the room only after its grant decision.
-          replace(
-              'apps/api/tests/test_commerce.py',
-              '''        return AccessDecision(\n            selected, user_id, granted, "ENTITLED" if granted else "ENTITLEMENT_REQUIRED",\n            uuid4() if (user_id, selected) in self.entitled else None, datetime.now(UTC),\n        )\n''',
-              '''        return AccessDecision(\n            stream_id=selected,\n            user_id=user_id,\n            granted=granted,\n            reason="ENTITLED" if granted else "ENTITLEMENT_REQUIRED",\n            entitlement_id=uuid4() if (user_id, selected) in self.entitled else None,\n            checked_at=datetime.now(UTC),\n            live_room_id="room_live_secure" if granted else None,\n        )\n''',
-          )
-          replace(
-              'apps/api/tests/test_commerce.py',
-              '    assert access.json()["entitlement_id"] is not None\n',
-              '    assert access.json()["entitlement_id"] is not None\n    assert access.json()["live_room_id"] == "room_live_secure"\n',
-          )
-          replace(
-              'apps/api/tests/test_commerce.py',
-              '    assert client.post(f"/streams/{stream_id}/access").status_code == 200\n\n\ndef test_commerce_authorization_and_payment_validation() -> None:\n',
-              '''    access = client.post(f"/streams/{stream_id}/access")\n    assert access.status_code == 200\n    assert access.json()["live_room_id"] == "room_live_secure"\n\n\ndef test_commerce_authorization_and_payment_validation() -> None:\n''',
-          )
+          Path('.github/workflows/apply-live-access-gate.yml').unlink()
           PY
 
-      - name: Verify changed sources
+      - name: Validate patch shape
         run: |
           grep -q 'liveStreamId' apps/web/src/App.tsx
-          grep -q 'VerifiedLiveViewer streamId=' apps/web/src/main.tsx
+          grep -q 'createViewerUrl(streamId)' apps/web/src/LiveStudio.tsx
           ! grep -q 'live_room_id' apps/api/app/scheduling/schemas.py
-          grep -q 'live_room_id' apps/api/app/commerce/schemas.py
+          grep -q 'restricted_active_streams_never_expose_room_id_publicly' apps/api/tests/test_scheduling.py
 
       - name: Commit patch
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add apps/web/src/peerBroadcast.ts apps/web/src/LiveStudio.tsx apps/web/src/App.tsx apps/web/src/main.tsx apps/api/tests/test_scheduling.py apps/api/tests/test_commerce.py
+          git add -A
           git diff --cached --check
           git commit -m 'fix: enforce authenticated live room access'
           git push origin HEAD:fix/issue-8-active-live-system-v2
