@@ -9,10 +9,17 @@ import {
   type BroadcastRoom,
   unpublishStream,
 } from './peerBroadcast'
+import { schedulingClient, usesRemoteSchedulingApi } from './scheduling'
 
 type Layout = 'screen' | 'screen-camera' | 'camera'
 type LiveState = 'preparing' | 'preview' | 'live' | 'paused' | 'ended'
 type InteractionChannel = 'chat' | 'questions' | 'reactions'
+
+type LiveStudioProps = {
+  onClose: () => void
+  streamId?: string
+  accessToken?: string
+}
 
 const stopStream = (stream: MediaStream | null) => stream?.getTracks().forEach((track) => track.stop())
 
@@ -49,7 +56,7 @@ function mediaErrorMessage(error: unknown, kind: 'camera' | 'microphone' | 'scre
     : `Não foi possível acessar ${kind === 'camera' ? 'a câmera' : 'o microfone'}.`
 }
 
-export function LiveStudio({ onClose }: { onClose: () => void }) {
+export function LiveStudio({ onClose, streamId, accessToken }: LiveStudioProps) {
   const [layout, setLayout] = useState<Layout>('screen')
   const [state, setState] = useState<LiveState>('preparing')
   const [screen, setScreen] = useState<MediaStream | null>(null)
@@ -61,6 +68,8 @@ export function LiveStudio({ onClose }: { onClose: () => void }) {
   const [roomId] = useState(createRoomId)
   const [viewerCount, setViewerCount] = useState(0)
   const [shareMessage, setShareMessage] = useState('')
+  const [lifecycleLoading, setLifecycleLoading] = useState(false)
+  const [finishPending, setFinishPending] = useState(false)
   const [interactions, setInteractions] = useState<Record<InteractionChannel, boolean>>({
     chat: true,
     questions: true,
@@ -75,6 +84,7 @@ export function LiveStudio({ onClose }: { onClose: () => void }) {
 
   const viewerUrl = useMemo(() => createViewerUrl(roomId), [roomId])
   const isLocalhost = typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname)
+  const hasPersistedClass = usesRemoteSchedulingApi && Boolean(streamId && accessToken)
 
   useEffect(() => {
     stateRef.current = state
@@ -215,6 +225,14 @@ export function LiveStudio({ onClose }: { onClose: () => void }) {
   }
 
   const preview = async () => {
+    if (!usesRemoteSchedulingApi) {
+      setError('A API de aulas precisa estar configurada para validar uma aula antes da transmissão.')
+      return
+    }
+    if (!hasPersistedClass) {
+      setError('Selecione uma aula cadastrada no Painel do criador antes de preparar a transmissão.')
+      return
+    }
     let hasVideo = false
     if (layout === 'camera') hasVideo = Boolean(cameraRef.current) || await requestCamera()
     else hasVideo = Boolean(screenRef.current) || await requestScreen()
@@ -245,23 +263,36 @@ export function LiveStudio({ onClose }: { onClose: () => void }) {
     setMicEnabled(enabled)
   }
 
-  const startBroadcast = () => {
+  const startBroadcast = async () => {
     setError('')
-    if (!ready) return
+    if (!ready || lifecycleLoading) return
+    if (!usesRemoteSchedulingApi || !streamId || !accessToken) {
+      setError('Esta transmissão precisa estar vinculada a uma aula cadastrada e confirmada no sistema.')
+      return
+    }
+
+    let room: BroadcastRoom | null = null
+    setLifecycleLoading(true)
     try {
-      const room = createLiveRoom(roomId, () => {
+      room = createLiveRoom(roomId, () => {
         setError('Algumas redes podem bloquear conexões diretas. Se o celular não conectar, teste sem VPN e, de preferência, em outra combinação de Wi-Fi/dados móveis.')
       })
       roomRef.current = room
+      await schedulingClient.activate(streamId, roomId, accessToken)
       room.onPeerJoin = (peerId) => {
-        setViewerCount(Object.keys(room.getPeers()).length)
+        setViewerCount(Object.keys(room!.getPeers()).length)
         publishCurrentTo(peerId)
       }
-      room.onPeerLeave = () => setViewerCount(Object.keys(room.getPeers()).length)
+      room.onPeerLeave = () => setViewerCount(Object.keys(room!.getPeers()).length)
       publishCurrentTo()
+      setFinishPending(false)
       setState('live')
     } catch (reason) {
+      room?.leave()
+      roomRef.current = null
       setError(reason instanceof Error ? reason.message : 'Não foi possível iniciar a transmissão.')
+    } finally {
+      setLifecycleLoading(false)
     }
   }
 
@@ -279,7 +310,22 @@ export function LiveStudio({ onClose }: { onClose: () => void }) {
     setState('live')
   }
 
-  const finish = () => {
+  const persistFinish = async () => {
+    if (!usesRemoteSchedulingApi || !streamId || !accessToken) return false
+    try {
+      await schedulingClient.finish(streamId, accessToken)
+      setFinishPending(false)
+      return true
+    } catch (reason) {
+      setFinishPending(true)
+      setError(`A mídia foi encerrada, mas o sistema ainda não confirmou o fim da aula. ${reason instanceof Error ? reason.message : 'Tente confirmar novamente.'}`)
+      return false
+    }
+  }
+
+  const finish = async () => {
+    setLifecycleLoading(true)
+    await persistFinish()
     leaveRoom()
     replaceStream('screen', null)
     replaceStream('camera', null)
@@ -287,6 +333,19 @@ export function LiveStudio({ onClose }: { onClose: () => void }) {
     setCameraEnabled(false)
     setMicEnabled(false)
     setState('ended')
+    setLifecycleLoading(false)
+  }
+
+  const retryFinish = async () => {
+    setLifecycleLoading(true)
+    const confirmed = await persistFinish()
+    if (confirmed) setError('')
+    setLifecycleLoading(false)
+  }
+
+  const closeStudio = async () => {
+    if (stateRef.current === 'live' || stateRef.current === 'paused') await finish()
+    onClose()
   }
 
   const copyViewerUrl = async () => {
@@ -299,7 +358,7 @@ export function LiveStudio({ onClose }: { onClose: () => void }) {
   }
 
   const needsScreen = layout !== 'camera'
-  const ready = (needsScreen ? Boolean(screen) : Boolean(camera)) && state !== 'ended'
+  const ready = (needsScreen ? Boolean(screen) : Boolean(camera)) && state !== 'ended' && hasPersistedClass
   const toggleInteraction = (channel: InteractionChannel) => {
     setInteractions((current) => ({ ...current, [channel]: !current[channel] }))
   }
@@ -311,7 +370,7 @@ export function LiveStudio({ onClose }: { onClose: () => void }) {
         <span className={`studio-status ${state}`}>{state === 'live' ? '● AO VIVO' : state === 'paused' ? 'Ⅱ PAUSADA' : state === 'ended' ? 'FINALIZADA' : 'ESTÚDIO'}</span>
         {state === 'live' && <small className="studio-viewer-count">{viewerCount} assistindo</small>}
       </div>
-      <button className="studio-close" onClick={() => { finish(); onClose() }} aria-label="Fechar estúdio">×</button>
+      <button className="studio-close" onClick={() => void closeStudio()} aria-label="Fechar estúdio">×</button>
     </header>
 
     <main className="studio-main">
@@ -322,7 +381,7 @@ export function LiveStudio({ onClose }: { onClose: () => void }) {
           {state !== 'paused' && state !== 'ended' && <>
             {needsScreen && <Video stream={screen} muted label="Prévia da tela compartilhada" />}
             {(layout === 'camera' || layout === 'screen-camera') && <Video stream={camera} muted label="Prévia da câmera" />}
-            {!ready && <div className="stage-message"><span className="stage-icon">▣</span><strong>Sua prévia aparecerá aqui</strong><span>Escolha Somente câmera para testar rapidamente, ou selecione uma tela para compartilhar.</span></div>}
+            {!ready && <div className="stage-message"><span className="stage-icon">▣</span><strong>{!usesRemoteSchedulingApi ? 'API de aulas não configurada' : hasPersistedClass ? 'Sua prévia aparecerá aqui' : 'Selecione uma aula cadastrada'}</strong><span>{!usesRemoteSchedulingApi ? 'Sem a fonte oficial não é possível confirmar uma aula ativa nem iniciar a transmissão.' : hasPersistedClass ? 'Escolha Somente câmera para testar rapidamente, ou selecione uma tela para compartilhar.' : 'O estúdio não entra ao vivo sem uma aula existente no sistema.'}</span></div>}
           </>}
         </div>
 
@@ -332,12 +391,13 @@ export function LiveStudio({ onClose }: { onClose: () => void }) {
           <button onClick={toggleMic} aria-pressed={!micEnabled} aria-label={micEnabled ? 'Silenciar' : 'Ativar microfone'}>{micEnabled ? '◉' : '⊘'} <span>{micEnabled ? 'Silenciar' : 'Ativar microfone'}</span></button>
           <button onClick={toggleCamera} aria-pressed={cameraEnabled} aria-label={cameraEnabled ? 'Desligar câmera' : 'Ligar câmera'}>▣ <span>{cameraEnabled ? 'Desligar câmera' : 'Ligar câmera'}</span></button>
           {needsScreen && <button onClick={requestScreen} aria-label="Trocar fonte">↻ <span>{screen ? 'Trocar fonte' : 'Escolher tela'}</span></button>}
-          {(state === 'live' || state === 'paused') && <button className="danger" onClick={finish} aria-label="Finalizar">■ <span>Finalizar</span></button>}
+          {(state === 'live' || state === 'paused') && <button className="danger" disabled={lifecycleLoading} onClick={() => void finish()} aria-label="Finalizar">■ <span>{lifecycleLoading ? 'Finalizando…' : 'Finalizar'}</span></button>}
         </div>
       </section>
 
       <aside className="studio-settings">
         <p className="eyebrow">CONFIGURAÇÃO</p><h1 id="studio-title">Prepare sua live</h1>
+        <p className="interaction-note" role="status">{!usesRemoteSchedulingApi ? 'API de aulas não configurada. A transmissão permanece bloqueada.' : streamId ? `Aula vinculada: ${streamId.slice(0, 8)}…` : 'Nenhuma aula vinculada. Volte ao Painel do criador e escolha Transmitir em uma aula.'}</p>
         <fieldset><legend>Layout</legend>
           <label><input type="radio" name="layout" checked={layout === 'screen'} onChange={() => void selectLayout('screen')} /><span>▱</span><b>Tela</b></label>
           <label><input type="radio" name="layout" checked={layout === 'screen-camera'} onChange={() => void selectLayout('screen-camera')} /><span>▰</span><b>Tela + câmera</b></label>
@@ -360,7 +420,7 @@ export function LiveStudio({ onClose }: { onClose: () => void }) {
         {needsScreen && <div className="source-card"><div><strong>Monitor, janela ou aba</strong><p>O navegador abrirá um seletor seguro para você escolher exatamente o que compartilhar.</p></div><button className="secondary" onClick={requestScreen}>{screen ? 'Trocar fonte' : 'Escolher fonte'}</button></div>}
 
         {(state === 'live' || state === 'paused') && <div className="broadcast-share-card">
-          <div><strong>Teste no celular</strong><p>Abra este endereço em outro dispositivo. A transmissão seguirá em tempo real enquanto esta live estiver ativa.</p></div>
+          <div><strong>Teste no celular</strong><p>Este link só é aceito enquanto a aula estiver marcada como ativa no sistema.</p></div>
           <code>{viewerUrl}</code>
           <button className="primary" onClick={copyViewerUrl}>Copiar link para assistir</button>
           {shareMessage && <small>{shareMessage}</small>}
@@ -369,12 +429,13 @@ export function LiveStudio({ onClose }: { onClose: () => void }) {
 
         <div className="permission-note"><strong>Você está no controle</strong><p>O Tela Viva não acessa nem controla seu computador. Câmera, microfone e tela só são usados após sua autorização explícita. Ao finalizar, todas as fontes locais e conexões ao vivo são encerradas.</p></div>
         {error && <p className="studio-error" role="alert">{error}</p>}
+        {finishPending && <button className="secondary" disabled={lifecycleLoading} onClick={() => void retryFinish()}>{lifecycleLoading ? 'Confirmando…' : 'Confirmar encerramento no sistema'}</button>}
 
         <div className="studio-actions">
-          {(state === 'preparing' || state === 'ended') && <button className="secondary" onClick={preview}>Ver preview</button>}
-          {state === 'preview' && <button className="primary" disabled={!ready} onClick={startBroadcast}>Iniciar transmissão</button>}
+          {(state === 'preparing' || state === 'ended') && !finishPending && <button className="secondary" disabled={!hasPersistedClass} onClick={() => void preview()}>Ver preview</button>}
+          {state === 'preview' && <button className="primary" disabled={!ready || lifecycleLoading} onClick={() => void startBroadcast()}>{lifecycleLoading ? 'Ativando aula…' : 'Iniciar transmissão'}</button>}
         </div>
-        <small className="broadcast-note">Homologação funcional: a mídia segue diretamente entre os dispositivos. Algumas redes restritivas podem exigir uma rota de retransmissão na etapa de produção.</small>
+        <small className="broadcast-note">Uma live só passa ao estado AO VIVO depois que a aula vinculada é ativada no backend. Sem confirmação do sistema, nenhum link é tratado como transmissão ativa.</small>
       </aside>
     </main>
   </div>
