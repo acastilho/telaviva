@@ -88,3 +88,14 @@ O workflow `.github/workflows/android-recorder-apk.yml` compila automaticamente 
 - opção sem microfone;
 - teste em Samsung/Android 14+ e ajustes por fabricante;
 - APK assinado para distribuição.
+
+<!-- COMPROMISSO-GERAL-A-CASTILHO -->
+
+---
+
+## Compromisso Geral
+
+**Sempre na melhor prática. No caminho do bem maior.**
+
+**Ir até o fim sem sair do caminho, seja ele qual for.**
+
