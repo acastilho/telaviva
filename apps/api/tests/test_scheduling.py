@@ -17,6 +17,7 @@ from app.scheduling.routes import get_scheduling_repository
 
 CATEGORY_ID = UUID("00000000-0000-4000-8000-000000000001")
 creator = User(uuid4(), "creator@example.com", "hash", Role.CREATOR, datetime.now(UTC))
+other_creator = User(uuid4(), "other@example.com", "hash", Role.CREATOR, datetime.now(UTC))
 viewer = User(uuid4(), "viewer@example.com", "hash", Role.VIEWER, datetime.now(UTC))
 
 
@@ -56,6 +57,75 @@ class MemorySchedulingRepository:
             ),
             key=lambda stream: stream.starts_at,
         )
+
+    async def list_active_streams(self) -> list[ScheduledStream]:
+        return sorted(
+            (
+                stream for stream in self.streams.values()
+                if stream.live_started_at is not None
+                and stream.live_ended_at is None
+                and stream.live_room_id is not None
+            ),
+            key=lambda stream: stream.live_started_at or datetime.min.replace(tzinfo=UTC),
+            reverse=True,
+        )
+
+    async def activate_stream(
+        self, stream_id: UUID, creator_id: UUID, room_id: str, started_at: datetime
+    ) -> ScheduledStream:
+        stream = self.streams.get(stream_id)
+        if stream is None or stream.creator_id != creator_id:
+            raise StreamNotFoundError
+        active = ScheduledStream(
+            id=stream.id,
+            creator_id=stream.creator_id,
+            title=stream.title,
+            description=stream.description,
+            objective=stream.objective,
+            starts_at=stream.starts_at,
+            estimated_duration_minutes=stream.estimated_duration_minutes,
+            category_id=stream.category_id,
+            level=stream.level,
+            price=stream.price,
+            access_type=stream.access_type,
+            created_at=stream.created_at,
+            live_started_at=started_at,
+            live_ended_at=None,
+            live_room_id=room_id,
+        )
+        self.streams[stream_id] = active
+        return active
+
+    async def finish_stream(
+        self, stream_id: UUID, creator_id: UUID, ended_at: datetime
+    ) -> ScheduledStream:
+        stream = self.streams.get(stream_id)
+        if (
+            stream is None
+            or stream.creator_id != creator_id
+            or stream.live_started_at is None
+            or stream.live_ended_at is not None
+        ):
+            raise StreamNotFoundError
+        finished = ScheduledStream(
+            id=stream.id,
+            creator_id=stream.creator_id,
+            title=stream.title,
+            description=stream.description,
+            objective=stream.objective,
+            starts_at=stream.starts_at,
+            estimated_duration_minutes=stream.estimated_duration_minutes,
+            category_id=stream.category_id,
+            level=stream.level,
+            price=stream.price,
+            access_type=stream.access_type,
+            created_at=stream.created_at,
+            live_started_at=stream.live_started_at,
+            live_ended_at=ended_at,
+            live_room_id=stream.live_room_id,
+        )
+        self.streams[stream_id] = finished
+        return finished
 
     async def follow(self, user_id: UUID, creator_id: UUID) -> None:
         if creator_id != creator.id:
@@ -172,10 +242,56 @@ def test_creator_schedules_and_public_can_filter_upcoming_streams() -> None:
     assert created["title"] == "APIs ao vivo"
     assert created["price"] == "29.90"
     assert created["level"] == "INTERMEDIATE"
+    assert created["live_started_at"] is None
+    assert created["live_room_id"] is None
 
     response = client.get("/streams", params={"creator_id": str(creator.id)})
     assert response.status_code == 200
     assert [item["id"] for item in response.json()] == [created["id"]]
+
+
+def test_stream_becomes_publicly_active_only_after_creator_starts_and_until_finish() -> None:
+    created = create_stream(price="0", access_type="FREE")
+    stream_id = created["id"]
+    assert client.get("/streams/active").json() == []
+
+    activated = client.post(
+        f"/streams/{stream_id}/activate", json={"room_id": "room_live_123"}
+    )
+    assert activated.status_code == 200
+    assert activated.json()["live_room_id"] == "room_live_123"
+    assert activated.json()["live_started_at"] is not None
+    assert activated.json()["live_ended_at"] is None
+
+    active = client.get("/streams/active")
+    assert active.status_code == 200
+    assert [item["id"] for item in active.json()] == [stream_id]
+
+    finished = client.post(f"/streams/{stream_id}/finish")
+    assert finished.status_code == 200
+    assert finished.json()["live_ended_at"] is not None
+    assert client.get("/streams/active").json() == []
+
+
+def test_only_owner_creator_can_activate_or_finish_and_room_id_is_validated() -> None:
+    global current_user
+    created = create_stream(price="0", access_type="FREE")
+    stream_id = created["id"]
+
+    assert client.post(f"/streams/{stream_id}/activate", json={"room_id": "bad room"}).status_code == 422
+
+    current_user = other_creator
+    assert client.post(
+        f"/streams/{stream_id}/activate", json={"room_id": "room_live_456"}
+    ).status_code == 404
+
+    current_user = creator
+    assert client.post(
+        f"/streams/{stream_id}/activate", json={"room_id": "room_live_456"}
+    ).status_code == 200
+
+    current_user = other_creator
+    assert client.post(f"/streams/{stream_id}/finish").status_code == 404
 
 
 def test_stream_validation_and_creator_authorization() -> None:
@@ -187,6 +303,9 @@ def test_stream_validation_and_creator_authorization() -> None:
     assert client.post("/streams", json=stream_body(category_id=str(uuid4()))).status_code == 422
     current_user = viewer
     assert client.post("/streams", json=stream_body()).status_code == 403
+    assert client.post(
+        f"/streams/{uuid4()}/activate", json={"room_id": "room_live_789"}
+    ).status_code == 403
 
 
 def test_following_builds_agenda_and_receives_new_stream_notification() -> None:
