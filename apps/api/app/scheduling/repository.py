@@ -30,6 +30,9 @@ class InvalidReminderTimeError(Exception):
 class SchedulingRepository(Protocol):
     async def create_stream(self, creator_id: UUID, **values: object) -> ScheduledStream: ...
     async def list_streams(self, *, creator_id: UUID | None, starts_after: datetime) -> list[ScheduledStream]: ...
+    async def list_active_streams(self) -> list[ScheduledStream]: ...
+    async def activate_stream(self, stream_id: UUID, creator_id: UUID, room_id: str, started_at: datetime) -> ScheduledStream: ...
+    async def finish_stream(self, stream_id: UUID, creator_id: UUID, ended_at: datetime) -> ScheduledStream: ...
     async def follow(self, user_id: UUID, creator_id: UUID) -> None: ...
     async def unfollow(self, user_id: UUID, creator_id: UUID) -> None: ...
     async def list_agenda(self, user_id: UUID, starts_after: datetime) -> list[ScheduledStream]: ...
@@ -47,7 +50,8 @@ def _stream(record: asyncpg.Record) -> ScheduledStream:
         estimated_duration_minutes=record["estimated_duration_minutes"],
         category_id=record["category_id"], level=Level(record["level"]),
         price=record["price"], access_type=AccessType(record["access_type"]),
-        created_at=record["created_at"],
+        created_at=record["created_at"], live_started_at=record["live_started_at"],
+        live_ended_at=record["live_ended_at"], live_room_id=record["live_room_id"],
     )
 
 
@@ -98,6 +102,46 @@ class PostgresSchedulingRepository:
                 starts_after, creator_id,
             )
             return [_stream(record) for record in records]
+        finally:
+            await connection.close()
+
+    async def list_active_streams(self) -> list[ScheduledStream]:
+        connection = await self._connect()
+        try:
+            records = await connection.fetch(
+                "SELECT * FROM scheduled_streams WHERE live_started_at IS NOT NULL AND live_ended_at IS NULL AND live_room_id IS NOT NULL ORDER BY live_started_at DESC,id"
+            )
+            return [_stream(record) for record in records]
+        finally:
+            await connection.close()
+
+    async def activate_stream(
+        self, stream_id: UUID, creator_id: UUID, room_id: str, started_at: datetime
+    ) -> ScheduledStream:
+        connection = await self._connect()
+        try:
+            record = await connection.fetchrow(
+                "UPDATE scheduled_streams SET live_started_at=$3,live_ended_at=NULL,live_room_id=$4 WHERE id=$1 AND creator_id=$2 RETURNING *",
+                stream_id, creator_id, started_at, room_id,
+            )
+            if record is None:
+                raise StreamNotFoundError
+            return _stream(record)
+        finally:
+            await connection.close()
+
+    async def finish_stream(
+        self, stream_id: UUID, creator_id: UUID, ended_at: datetime
+    ) -> ScheduledStream:
+        connection = await self._connect()
+        try:
+            record = await connection.fetchrow(
+                "UPDATE scheduled_streams SET live_ended_at=$3 WHERE id=$1 AND creator_id=$2 AND live_started_at IS NOT NULL AND live_ended_at IS NULL RETURNING *",
+                stream_id, creator_id, ended_at,
+            )
+            if record is None:
+                raise StreamNotFoundError
+            return _stream(record)
         finally:
             await connection.close()
 
