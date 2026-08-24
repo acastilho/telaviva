@@ -47,8 +47,10 @@ jobs:
           npm run test -- --run
           npm run build
 
-      - name: Configurar Pages
+      - name: Configurar e habilitar Pages
         uses: actions/configure-pages@v5
+        with:
+          enablement: true
 
       - name: Empacotar build
         uses: actions/upload-pages-artifact@v3
