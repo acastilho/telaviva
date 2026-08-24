@@ -82,7 +82,7 @@ export function LiveStudio({ onClose, streamId, accessToken }: LiveStudioProps) 
   const roomRef = useRef<BroadcastRoom | null>(null)
   const stateRef = useRef<LiveState>('preparing')
 
-  const viewerUrl = useMemo(() => createViewerUrl(roomId), [roomId])
+  const viewerUrl = useMemo(() => streamId ? createViewerUrl(streamId) : '', [streamId])
   const isLocalhost = typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname)
   const hasPersistedClass = usesRemoteSchedulingApi && Boolean(streamId && accessToken)
 

@@ -24,7 +24,7 @@ type Session = {
   initials: string
   objective: string
   audiences: Audience[]
-  liveRoomId?: string
+  liveStreamId?: string
 }
 
 type CreatorSummary = {
@@ -125,7 +125,7 @@ function toSession(stream: ScheduledStream, live: boolean): Session {
     initials: 'TV',
     objective: stream.objective,
     audiences: streamAudiences(stream.description),
-    liveRoomId: live ? stream.live_room_id ?? undefined : undefined,
+    liveStreamId: live ? stream.id : undefined,
   }
 }
 
@@ -266,14 +266,14 @@ export function App() {
   }
 
   const openVerifiedLive = (session: Session) => {
-    if (!session.liveRoomId) {
+    if (!session.liveStreamId) {
       setToast('Esta aula não possui uma transmissão ativa confirmada no sistema.')
       return
     }
     const url = new URL(window.location.href)
     url.search = ''
     url.hash = ''
-    url.searchParams.set('live', session.liveRoomId)
+    url.searchParams.set('live', session.liveStreamId)
     window.location.assign(url.toString())
   }
 

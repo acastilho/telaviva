@@ -182,7 +182,7 @@ def test_creator_schedules_and_public_can_filter_upcoming_streams() -> None:
     assert created["price"] == "29.90"
     assert created["level"] == "INTERMEDIATE"
     assert created["live_started_at"] is None
-    assert created["live_room_id"] is None
+    assert "live_room_id" not in created
 
     response = client.get("/streams", params={"creator_id": str(creator.id)})
     assert response.status_code == 200
@@ -196,15 +196,36 @@ def test_stream_becomes_publicly_active_only_after_creator_starts_and_until_fini
 
     activated = client.post(f"/streams/{stream_id}/activate", json={"room_id": "room_live_123"})
     assert activated.status_code == 200
-    assert activated.json()["live_room_id"] == "room_live_123"
+    assert "live_room_id" not in activated.json()
     assert activated.json()["live_started_at"] is not None
     assert activated.json()["live_ended_at"] is None
-    assert [item["id"] for item in client.get("/streams/active").json()] == [stream_id]
+    active = client.get("/streams/active").json()
+    assert [item["id"] for item in active] == [stream_id]
+    assert "live_room_id" not in active[0]
 
     finished = client.post(f"/streams/{stream_id}/finish")
     assert finished.status_code == 200
     assert finished.json()["live_ended_at"] is not None
     assert client.get("/streams/active").json() == []
+
+
+def test_restricted_active_streams_never_expose_room_id_publicly() -> None:
+    cases = [
+        ("PAID", "29.90", "room_paid_123"),
+        ("SUBSCRIBERS", "0", "room_subscribers_123"),
+        ("PRIVATE", "0", "room_private_123"),
+    ]
+    for access_type, price, room_id in cases:
+        created = create_stream(access_type=access_type, price=price)
+        activated = client.post(f"/streams/{created['id']}/activate", json={"room_id": room_id})
+        assert activated.status_code == 200
+        assert "live_room_id" not in activated.json()
+
+    response = client.get("/streams/active")
+    assert response.status_code == 200
+    active = response.json()
+    assert {item["access_type"] for item in active} >= {"PAID", "SUBSCRIBERS", "PRIVATE"}
+    assert all("live_room_id" not in item for item in active)
 
 
 def test_only_owner_creator_can_activate_or_finish_and_room_id_is_validated() -> None:
