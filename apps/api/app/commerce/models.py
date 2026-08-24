@@ -85,3 +85,5 @@ class AccessDecision:
     reason: str
     entitlement_id: UUID | None
     checked_at: datetime
+    # Only populated by the authenticated access check after authorization succeeds.
+    live_room_id: str | None = None
