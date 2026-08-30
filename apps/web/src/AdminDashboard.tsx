@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { adminClient } from './adminClient'
 import type { AuthUser, Role } from './auth'
 import { BrandMark } from './BrandMark'
@@ -38,6 +38,7 @@ export function AdminDashboard({ onClose, accessToken }: AdminDashboardProps) {
   const [usersError, setUsersError] = useState('')
   const [pendingUserId, setPendingUserId] = useState<string | null>(null)
   const [usersMessage, setUsersMessage] = useState('')
+  const adminToken = useMemo(() => accessToken || adminClient.currentAccessToken(), [accessToken])
 
   const navigate = (id: string) => {
     setActive(id)
@@ -46,13 +47,13 @@ export function AdminDashboard({ onClose, accessToken }: AdminDashboardProps) {
 
   useEffect(() => {
     let mounted = true
-    if (!accessToken || !adminClient.usesRemoteApi) {
+    if (!adminToken || !adminClient.usesRemoteApi) {
       setUsersLoading(false)
       setUsersError('A sessão administrativa ou a API não está disponível.')
       return () => { mounted = false }
     }
 
-    adminClient.listUsers(accessToken)
+    adminClient.listUsers(adminToken)
       .then((items) => {
         if (!mounted) return
         setUsers(items)
@@ -66,15 +67,15 @@ export function AdminDashboard({ onClose, accessToken }: AdminDashboardProps) {
       })
 
     return () => { mounted = false }
-  }, [accessToken])
+  }, [adminToken])
 
   const changeRole = async (user: AuthUser, role: Role) => {
-    if (!accessToken || role === user.role) return
+    if (!adminToken || role === user.role) return
     setPendingUserId(user.id)
     setUsersError('')
     setUsersMessage('')
     try {
-      const updated = await adminClient.updateUserRole(user.id, role, accessToken)
+      const updated = await adminClient.updateUserRole(user.id, role, adminToken)
       setUsers((current) => current.map((item) => item.id === updated.id ? updated : item))
       setUsersMessage(`${updated.email} agora possui o perfil ${roleLabels[updated.role]}. Sessões anteriores foram revogadas.`)
     } catch (error) {
