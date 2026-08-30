@@ -46,7 +46,19 @@ class StreamCreate(BaseModel):
         return self
 
 
+class StreamActivationRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    room_id: str = Field(min_length=6, max_length=128, pattern=r"^[A-Za-z0-9_-]+$")
+
+    @field_validator("room_id")
+    @classmethod
+    def normalize_room_id(cls, value: str) -> str:
+        return value.strip()
+
+
 class StreamResponse(BaseModel):
+    # Room identifiers are authorization-sensitive and intentionally excluded.
     id: UUID
     creator_id: UUID
     title: str
@@ -59,6 +71,8 @@ class StreamResponse(BaseModel):
     price: Decimal
     access_type: AccessType
     created_at: datetime
+    live_started_at: datetime | None = None
+    live_ended_at: datetime | None = None
 
 
 class ReminderCreate(BaseModel):
