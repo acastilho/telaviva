@@ -40,6 +40,10 @@ class PasswordResetRequest(BaseModel):
     new_password: str = Field(min_length=12, max_length=128)
 
 
+class UserRoleUpdateRequest(BaseModel):
+    role: Role
+
+
 class UserResponse(BaseModel):
     id: str
     email: EmailStr
