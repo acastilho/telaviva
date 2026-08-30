@@ -47,6 +47,25 @@ class MemoryRepository:
     async def list_users(self) -> list[User]:
         return list(self.users.values())
 
+    async def update_user_role(self, user_id: UUID, role: Role) -> User | None:
+        user = self.users.get(user_id)
+        if user is None:
+            return None
+        updated = User(
+            user.id,
+            user.email,
+            user.password_hash,
+            role,
+            user.created_at,
+            user.audience,
+            user.guardian_email,
+        )
+        self.users[user_id] = updated
+        for token_id, refresh in list(self.refresh_tokens.items()):
+            if refresh[0] == user_id:
+                self.refresh_tokens[token_id] = (*refresh[:3], True)
+        return updated
+
     async def store_refresh_token(
         self, token_id: UUID, user_id: UUID, token_hash_value: str, expires_at: datetime
     ) -> None:
@@ -240,6 +259,65 @@ def test_rbac_denies_viewer_and_allows_admin() -> None:
     )
     assert allowed.status_code == 200
     assert len(allowed.json()) == 2
+
+
+def test_admin_can_promote_creator_and_role_change_invalidates_old_sessions() -> None:
+    viewer_tokens = register_and_login()
+    viewer = next(user for user in repository.users.values() if user.email == "viewer@example.com")
+
+    admin = User(
+        uuid4(),
+        "admin@example.com",
+        hash_password("admin-password-123"),
+        Role.ADMIN,
+        datetime.now(UTC),
+        Audience.ADULT,
+        None,
+    )
+    repository.users[admin.id] = admin
+    admin_tokens = client.post(
+        "/auth/login", json={"email": admin.email, "password": "admin-password-123"}
+    ).json()
+    admin_headers = {"Authorization": f"Bearer {admin_tokens['access_token']}"}
+
+    promoted = client.patch(
+        f"/auth/users/{viewer.id}/role",
+        json={"role": "CREATOR"},
+        headers=admin_headers,
+    )
+    assert promoted.status_code == 200
+    assert promoted.json()["role"] == "CREATOR"
+
+    old_headers = {"Authorization": f"Bearer {viewer_tokens['access_token']}"}
+    assert client.get("/auth/me", headers=old_headers).status_code == 401
+    assert client.post(
+        "/auth/refresh", json={"refresh_token": viewer_tokens["refresh_token"]}
+    ).status_code == 401
+
+    new_login = client.post(
+        "/auth/login", json={"email": "viewer@example.com", "password": "strong-password-123"}
+    )
+    assert new_login.status_code == 200
+    current = client.get(
+        "/auth/me",
+        headers={"Authorization": f"Bearer {new_login.json()['access_token']}"},
+    )
+    assert current.status_code == 200
+    assert current.json()["role"] == "CREATOR"
+
+    viewer_cannot_promote = client.patch(
+        f"/auth/users/{admin.id}/role",
+        json={"role": "VIEWER"},
+        headers={"Authorization": f"Bearer {new_login.json()['access_token']}"},
+    )
+    assert viewer_cannot_promote.status_code == 403
+
+    self_demotion = client.patch(
+        f"/auth/users/{admin.id}/role",
+        json={"role": "VIEWER"},
+        headers=admin_headers,
+    )
+    assert self_demotion.status_code == 400
 
 
 def test_password_recovery_does_not_enumerate_and_resets_once() -> None:

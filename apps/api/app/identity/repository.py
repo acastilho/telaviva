@@ -24,6 +24,7 @@ class IdentityRepository(Protocol):
     async def get_user_by_email(self, email: str) -> User | None: ...
     async def get_user_by_id(self, user_id: UUID) -> User | None: ...
     async def list_users(self) -> list[User]: ...
+    async def update_user_role(self, user_id: UUID, role: Role) -> User | None: ...
     async def store_refresh_token(
         self, token_id: UUID, user_id: UUID, token_hash: str, expires_at: datetime
     ) -> None: ...
@@ -102,6 +103,30 @@ class PostgresIdentityRepository:
         try:
             records = await connection.fetch("SELECT * FROM users ORDER BY created_at")
             return [_user(record) for record in records]
+        finally:
+            await connection.close()
+
+    async def update_user_role(self, user_id: UUID, role: Role) -> User | None:
+        connection = await self._connect()
+        try:
+            async with connection.transaction():
+                record = await connection.fetchrow(
+                    "UPDATE users SET role=$2 WHERE id=$1 "
+                    "RETURNING id,email,password_hash,role,audience,guardian_email,created_at",
+                    user_id,
+                    role.value,
+                )
+                if record is None:
+                    return None
+                # Role changes invalidate every existing session. Access tokens are rejected
+                # immediately because get_current_user compares the JWT role to the database;
+                # refresh tokens are revoked here to prevent minting a new token from stale state.
+                await connection.execute(
+                    "UPDATE refresh_tokens SET revoked_at=now() "
+                    "WHERE user_id=$1 AND revoked_at IS NULL",
+                    user_id,
+                )
+                return _user(record)
         finally:
             await connection.close()
 

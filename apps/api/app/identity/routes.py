@@ -21,6 +21,7 @@ from app.identity.schemas import (
     RegisterRequest,
     TokenResponse,
     UserResponse,
+    UserRoleUpdateRequest,
 )
 from app.identity.security import (
     InvalidTokenError,
@@ -207,3 +208,18 @@ async def users(
     _: User = require_roles(Role.ADMIN),  # type: ignore[assignment]
 ) -> list[UserResponse]:
     return [_response(user) for user in await repository.list_users()]
+
+
+@router.patch("/users/{user_id}/role", response_model=UserResponse)
+async def update_user_role(
+    user_id: UUID,
+    body: UserRoleUpdateRequest,
+    repository: IdentityRepository = Depends(get_identity_repository),
+    admin: User = require_roles(Role.ADMIN),  # type: ignore[assignment]
+) -> UserResponse:
+    if user_id == admin.id and body.role is not Role.ADMIN:
+        raise HTTPException(status_code=400, detail="Administrators cannot remove their own admin role")
+    updated = await repository.update_user_role(user_id, body.role)
+    if updated is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    return _response(updated)
