@@ -3,6 +3,7 @@ import type { AuthUser, Role } from './auth'
 const configuredBase = (import.meta.env.VITE_API_URL as string | undefined)?.trim()
 const API_BASE = configuredBase ? configuredBase.replace(/\/$/, '') : ''
 const REQUEST_TIMEOUT_MS = 12_000
+const SESSION_KEY = 'tv_session_v1'
 
 async function apiRequest<T>(path: string, accessToken: string, init: RequestInit = {}): Promise<T> {
   const controller = new AbortController()
@@ -39,8 +40,21 @@ async function apiRequest<T>(path: string, accessToken: string, init: RequestIni
   }
 }
 
+function currentAccessToken(): string | null {
+  if (typeof window === 'undefined') return null
+  const raw = window.sessionStorage.getItem(SESSION_KEY)
+  if (!raw) return null
+  try {
+    const session = JSON.parse(raw) as { accessToken?: unknown }
+    return typeof session.accessToken === 'string' && session.accessToken ? session.accessToken : null
+  } catch {
+    return null
+  }
+}
+
 export const adminClient = {
   usesRemoteApi: Boolean(API_BASE),
+  currentAccessToken,
 
   listUsers(accessToken: string): Promise<AuthUser[]> {
     return apiRequest<AuthUser[]>('/auth/users', accessToken)
